@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.10)
+project(client)
+aux_source_directory(. SRC_LIST_C)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})
+add_executable(${PROJECT_NAME} ${SRC_LIST_C})

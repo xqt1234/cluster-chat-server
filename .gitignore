@@ -2,3 +2,5 @@
 /Client/client
 /build
 /Server/include
+/Client/*.log
+/Server/*.log

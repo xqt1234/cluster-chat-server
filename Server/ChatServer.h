@@ -1,11 +1,22 @@
 #pragma once
+#include "TcpServer.h"
+#include "TcpConnection.h"
+#include <iostream>
+#include <memory>
 
 class ChatServer
 {
 private:
-    /* data */
+    EventLoop* m_loop;
+    TcpServer* m_server;
 public:
-    ChatServer(/* args */);
+    ChatServer(EventLoop* loop,uint16_t port,std::string ipaddr);
     ~ChatServer();
+    void onMessage(const TcpConnectionPtr& conn,Buffer* buf);
+    void start();
+    void setThreadNum(int num);
+    void newConnection(const TcpConnectionPtr &conn);
+private:
+    
 };
 

@@ -1,6 +1,6 @@
 #include <iostream>
 #include "ChatServer.h"
-
+#include <thread>
 EventLoop* gloop = nullptr;
 void resethandler(int sigNum)
 {
@@ -14,5 +14,6 @@ int main()
     ChatServer m_server(gloop,9999,"192.168.65.4");
     m_server.start();
     gloop->loop();
+    std::cout << std::this_thread::get_id() << std::endl;
     return 0;
 }

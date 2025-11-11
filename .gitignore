@@ -4,3 +4,5 @@
 /Server/include
 /Client/*.log
 /Server/*.log
+/.vscode/settings.json
+/.vscode/

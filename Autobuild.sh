@@ -9,7 +9,9 @@ else
     rm -rf `pwd`/build/*
 fi
 
-rm  `pwd`/Server/*.log
+if ls `pwd`/Server/*.log >/dev/null 2>&1;then
+    rm  `pwd`/Server/*.log
+fi
 
 cd `pwd`/build && cmake .. && make 
 

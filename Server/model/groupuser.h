@@ -7,6 +7,6 @@ private:
 public:
     GroupUser() = default;
     ~GroupUser() = default;
-    bool setRole(const std::string& role){m_role = role;}
+    void setRole(const std::string& role){m_role = role;}
     std::string getRole(){return m_role;}
 };

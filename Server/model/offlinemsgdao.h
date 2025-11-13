@@ -10,6 +10,6 @@ public:
     ~OffineMessageDAO() = default;
     std::vector<std::string> query(int userid);
     bool remove(int userid);
-    void insert(int userid,std::string msg);
+    bool insert(int userid,std::string msg);
 };
 

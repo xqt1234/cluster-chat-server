@@ -3,6 +3,13 @@
 #include <thread>
 #include <vector>
 #include "ConnectionPool.h"
+
+#include "userdao.h"
+#include "frienddao.h"
+#include "group.h"
+#include "groupuser.h"
+#include "offlinemsgdao.h"
+#include "user.h"
 EventLoop *gloop = nullptr;
 void resethandler(int sigNum)
 {
@@ -12,7 +19,19 @@ void resethandler(int sigNum)
 }
 int main()
 {
-    ConnectionPool::getInstance().createDefaultTables("mysql.sql");
+    //ConnectionPool::getInstance().createDefaultTables("mysql.sql");
+    User user;
+    user.setPassWord("xxxx");
+    user.setUserName("xiong");
+    UserDAO userdao;
+    
+    if(userdao.inserUser(user))
+    {
+        std::cout << "插入成功" << std::endl;
+    }else
+    {
+        std::cout << "插入失败" << std::endl;
+    }
     return 0;
     gloop = new EventLoop();
     ChatServer m_server(gloop, 9999, "192.168.65.4");

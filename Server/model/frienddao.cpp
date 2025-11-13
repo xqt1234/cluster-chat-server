@@ -33,7 +33,7 @@ bool FriendDAO::addFriend(int userid, int friendid)
     auto conn = ConnectionPool::getInstance().getConnection();
     if (conn == nullptr)
     {
-        return;
+        return false;
     }
     char buf[1024];
     snprintf(buf, sizeof(buf), "insert into friend values(%d,%d)", userid,friendid);

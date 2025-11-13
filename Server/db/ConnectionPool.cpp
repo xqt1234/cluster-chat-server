@@ -82,6 +82,43 @@ std::shared_ptr<Connection> ConnectionPool::getConnection()
     return sp;
 }
 
+ConnectionPool &ConnectionPool::getInstance()
+{
+    static ConnectionPool conn;
+    return conn;
+}
+
+void ConnectionPool::createDefaultTables(std::string filename)
+{
+    std::ifstream ss(filename);
+    if (!ss.is_open())
+    {
+        LOG_FATAL("找不到执行sql初始文件{}",filename);
+        return;
+    }
+    std::string line;
+    std::vector<std::string> sqlvec;
+    while(getline(ss,line))
+    {
+        if(line.starts_with("create"))
+        {
+            sqlvec.push_back(line);
+        }
+    }
+    auto conn = getConnection();
+    if (conn != nullptr)
+    {
+        for (auto &sql : sqlvec)
+        {
+            bool res = conn->update(sql);
+            if(!res)
+            {
+                LOG_ERROR("初始化表失败，可能数据库没建");
+            }
+        }
+    }
+}
+
 
 void ConnectionPool::init()
 {

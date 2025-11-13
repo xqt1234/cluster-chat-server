@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 project(server)
 aux_source_directory(. SRC_LIST_E)
-
+aux_source_directory(./db SRC_LIST_2)
 link_directories(${PROJECT_SOURCE_DIR}/lib)
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/db)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})
-add_executable(${PROJECT_NAME} ${SRC_LIST_E})
-target_link_libraries(${PROJECT_NAME} newmuduo)
+add_executable(${PROJECT_NAME} ${SRC_LIST_E} ${SRC_LIST_2})
+target_link_libraries(${PROJECT_NAME} newmuduo mysqlclient)

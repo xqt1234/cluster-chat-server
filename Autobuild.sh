@@ -9,6 +9,7 @@ else
     rm -rf `pwd`/build/*
 fi
 
+rm  `pwd`/Server/*.log
 
 cd `pwd`/build && cmake .. && make 
 

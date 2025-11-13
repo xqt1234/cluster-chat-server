@@ -24,13 +24,20 @@ private:
     std::atomic<bool> m_stop{false};
     std::thread m_scanThread;
 public:
+    
+    std::shared_ptr<Connection> getConnection();
+    static ConnectionPool& getInstance();
+    void createDefaultTables(std::string filename);
+private:
     ConnectionPool(/* args */);
     ~ConnectionPool();
-    std::shared_ptr<Connection> getConnection();
-private:
+    ConnectionPool(const ConnectionPool& src) = delete;
+    ConnectionPool& operator=(const ConnectionPool& src) = delete;
     bool loadConfig();
     void Trim(std::string &str);
     void init();
     void scanFunc();
+    
+
 };
 

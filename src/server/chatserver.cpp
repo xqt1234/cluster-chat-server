@@ -1,6 +1,7 @@
-#include "ChatServer.h"
+#include "chatserver.h"
 #include "json.hpp"
 #include "Logger.h"
+#include "chatservice.h"
 using json = nlohmann::json;
 ChatServer::ChatServer(EventLoop *loop, uint16_t port, std::string ipaddr)
     : m_loop(loop), m_server(new TcpServer(loop, port, ipaddr))
@@ -52,6 +53,7 @@ void ChatServer::onMessage(const TcpConnectionPtr &conn, Buffer *buf)
         LOG_ERROR("解析错误");
         return;
     }
-    
-    
+    int msgid = js["msgid"];
+    MsgHandle handle = m_service.getHandler(msgid);
+    handle(conn,js);
 }

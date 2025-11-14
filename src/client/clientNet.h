@@ -8,7 +8,8 @@ public:
     ClientNet(/* args */);
     ~ClientNet();
     void connect();
-    void send(std::string str);
+    bool send(const std::string& str);
+    std::string recvmsg();
 private:
     void init();
 };

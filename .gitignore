@@ -1,8 +1,7 @@
-/Server/server
-/Client/client
+/src/server/server
+/src/client/client
 /build
-/Server/include
-/Client/*.log
-/Server/*.log
+/client/*.log
+/server/*.log
 /.vscode/settings.json
 /.vscode/

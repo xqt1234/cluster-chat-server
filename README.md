@@ -29,9 +29,17 @@
 4.2,提供数据库查询更新接口，供dao层使用。
 
 5.根据设计的数据表编写各实体类和dao类
-
+5.1,编写user，group，offlinemessage实体类
+5.2,编写userdao，frienddao,groupdao，offlinemessagedao类。
 
 第三部分目标：单服务器情况下，完成聊天功能，
-
+6.编写chatserver类，
+功能：
+6.1,设置服务器参数，启动服务器，
+6.2,设置新连接回调，调用各种服务
+7.编写chatservice类
+功能：
+7.1，提供获取回调接口，供chatserver类获取
+7.2，在这里处理所有功能，注册，登录，聊天，群聊等等功能并调用dao类来完成这些功能。
 
 第四部分目标：给单服务器增加集群功能。

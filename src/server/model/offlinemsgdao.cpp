@@ -1,5 +1,5 @@
 #include "offlinemsgdao.h"
-#include "ConnectionPool.h"
+#include "connectionPool.h"
 std::vector<std::string> OffineMessageDAO::query(int userid)
 {
     std::vector<std::string> vec;

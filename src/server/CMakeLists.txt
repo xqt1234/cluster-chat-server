@@ -5,7 +5,7 @@ aux_source_directory(./db SRC_LIST_2)
 aux_source_directory(./model SRC_LIST_3)
 
 include_directories(${PROJECT_SOURCE_DIR}/db)
-include_directories(${PROJECT_SOURCE_DIR}/model)
+
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})
 add_executable(${PROJECT_NAME} ${SRC_LIST_E} ${SRC_LIST_2} ${SRC_LIST_3})

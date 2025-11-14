@@ -1,4 +1,4 @@
-#include "ClientNet.h"
+#include "clientNet.h"
 #include <arpa/inet.h>
 #include "Logger.h"
 #include <sys/socket.h>
@@ -10,6 +10,7 @@ ClientNet::ClientNet()
 
 ClientNet::~ClientNet()
 {
+    ::close(m_fd);
 }
 
 void ClientNet::connect()
@@ -27,17 +28,30 @@ void ClientNet::connect()
     }
 }
 
-void ClientNet::send(std::string str)
+bool ClientNet::send(const std::string& str)
 {
     int n = ::send(m_fd,str.c_str(),str.length(),0);
     if(n < 0)
     {
         LOG_ERROR("发送失败");
+        return false;
     }else
     {
         LOG_INFO("发送成功");
     }
+    return true;
+}
 
+std::string ClientNet::recvmsg()
+{
+    char buf[1024]{};
+    int n = ::recv(m_fd,buf,sizeof(buf),0);
+    if(n < 0)
+    {
+        LOG_ERROR("收数据错误");
+        return "";
+    }
+    return std::string(buf,n);
 }
 
 void ClientNet::init()

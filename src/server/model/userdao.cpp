@@ -1,7 +1,8 @@
 #include "userdao.h"
 #include "user.h"
 #include "connectionPool.h"
-bool UserDAO::inserUser(const User &user)
+#include <iostream>
+bool UserDAO::inserUser(User &user)
 {
     auto conn = ConnectionPool::getInstance().getConnection();
     if (conn == nullptr)
@@ -9,10 +10,17 @@ bool UserDAO::inserUser(const User &user)
         return false;
     }
     char buf[1024];
-    snprintf(buf, sizeof(buf), "insert into user values('%s','%s');",
+    snprintf(buf, sizeof(buf), "insert into user(username,password) values('%s','%s');",
              const_cast<User &>(user).getUserName().c_str(),
              const_cast<User &>(user).getPassWord().c_str());
-    return conn->update(buf);
+    std::cout << std::string(buf) << std::endl;
+    if(conn->update(buf))
+    {
+        int id = mysql_insert_id(conn->getconnection());
+        user.setId(id);
+        return true;
+    }
+    return false;
 }
 
 User UserDAO::queryUser(int id)
@@ -24,16 +32,17 @@ User UserDAO::queryUser(int id)
     }
     char buf[1024];
     snprintf(buf,sizeof(buf),"select id,username,password from user where id=%d",id);
-    MYSQL_RES* res = conn->query(buf);
+    DbRes res = conn->query(buf);
     if(res != nullptr)
     {
-        MYSQL_ROW row = mysql_fetch_row(res);
+        MYSQL_ROW row = mysql_fetch_row(res.get());
         if(row != nullptr)
         {
             User user;
             user.setId(atoi(row[0]));
             user.setUserName(row[1]);
             user.setPassWord(row[2]);
+            // 释放结果集后再返回
             return user;
         }
     }

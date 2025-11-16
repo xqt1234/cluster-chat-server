@@ -9,12 +9,12 @@ else
     rm -rf `pwd`/build/*
 fi
 
-if ls `pwd`/src/client/*.log >/dev/null 2>&1;then
-    rm  `pwd`/src/client/*.log
+if ls `pwd`/src/client/log/*.log >/dev/null 2>&1;then
+    rm  `pwd`/src/client/log/*.log
 fi
 
-if ls `pwd`/src/server/*.log >/dev/null 2>&1;then
-    rm  `pwd`/src/server/*.log
+if ls `pwd`/src/server/log/*.log >/dev/null 2>&1;then
+    rm  `pwd`/src/server/log/*.log
 fi
 cd `pwd`/build && cmake .. && make 
 

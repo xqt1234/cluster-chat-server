@@ -1,4 +1,5 @@
 #include "Logger.h"
+#include <filesystem>
 const int maxSize = 100 * 1024 * 1024;
 Logger &Logger::getInstance()
 {
@@ -108,11 +109,16 @@ void Logger::processBuffers()
 
 std::string Logger::createDefaultFileName()
 {
+    std::filesystem::path logdir = "log";
+    if(!std::filesystem::exists(logdir))
+    {
+        std::filesystem::create_directories(logdir);
+    }
     auto now = std::chrono::system_clock::now();
     auto local = floor<std::chrono::milliseconds>(now);
     auto local_time = std::chrono::zoned_time{std::chrono::current_zone(), local};
     std::string filename = std::format("{:%Y%m%d%H%M%S}.log", local_time);
-    return filename;
+    return (logdir / filename).string();
 }
 
 void Logger::checkfile()

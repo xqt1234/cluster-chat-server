@@ -10,15 +10,14 @@ std::vector<std::string> OffineMessageDAO::query(int userid)
     }
     char buf[1024];
     snprintf(buf, sizeof(buf), "select id,message from offlinemessage where userid=%d order by id;", userid);
-    MYSQL_RES *res = conn->query(buf);
+    DbRes res = conn->query(buf);
     if (res != nullptr)
     {
         MYSQL_ROW row = nullptr;
-        while ((row = mysql_fetch_row(res)) != nullptr)
+        while ((row = mysql_fetch_row(res.get())) != nullptr)
         {
             vec.push_back(row[1]);
         }
-        mysql_free_result(res);
     }
     return vec;
 }

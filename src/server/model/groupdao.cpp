@@ -40,11 +40,11 @@ std::vector<Group> GroupDAO::queryGroup(int userid)
     //index idx_userid(userid),primary key(groupid,userid));
     char buf[1024];
     snprintf(buf, sizeof(buf),"select a.id,a.groupname,a.groupdesc from allgroup a join groupuser b on a.id=b.groupid where b.userid=%d;",userid);
-    MYSQL_RES* mres = conn->query(buf);
+    DbRes mres = conn->query(buf);
     if(mres != nullptr)
     {
         MYSQL_ROW row = nullptr;
-        while((row = mysql_fetch_row(mres)) != nullptr)
+        while((row = mysql_fetch_row(mres.get())) != nullptr)
         {
             Group tgroup;
             tgroup.setId(atoi(row[0]));

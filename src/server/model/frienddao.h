@@ -10,5 +10,6 @@ public:
     ~FriendDAO() = default;
     std::vector<User> query(int id);
     bool addFriend(int userid,int friendid);
+    bool isFriend(int userid,int friendid);
 };
 

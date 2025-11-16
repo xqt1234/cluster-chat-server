@@ -19,7 +19,8 @@ void resethandler(int sigNum)
 }
 int main()
 {
-    //ConnectionPool::getInstance().createDefaultTables("mysql.sql");
+    // ConnectionPool::getInstance().createDefaultTables("mysql.sql");
+    // return 0;
     // User user;
     // user.setPassWord("xxxx");
     // user.setUserName("xiong");

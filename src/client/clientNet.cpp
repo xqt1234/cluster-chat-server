@@ -6,6 +6,7 @@
 ClientNet::ClientNet()
 {
     init();
+    connect();
 }
 
 ClientNet::~ClientNet()

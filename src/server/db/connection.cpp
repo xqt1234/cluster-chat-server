@@ -35,6 +35,7 @@ bool Connection::connect(std::string hostaddr, std::string username,
 
 DbRes Connection::query(std::string sql)
 {
+    LOG_DEBUG("sql:{}",sql);
     if (mysql_query(m_conn, sql.c_str()) != 0)
     {
         LOG_ERROR("数据库查询失败{} error:{}", sql, mysql_error(m_conn));
@@ -45,6 +46,11 @@ DbRes Connection::query(std::string sql)
     MYSQL_RES *res = mysql_store_result(m_conn);
     //MYSQL_RES* res2 = mysql_use_result(m_conn);use只一遍一遍获取，store一次性获取。
     return {res, mysql_free_result};
+}
+
+int Connection::getLastId()
+{
+    return mysql_insert_id(m_conn);
 }
 
 bool Connection::update(std::string sql)
@@ -66,11 +72,6 @@ int Connection::getIdleTime()
 void Connection::flushIdleTime()
 {
     m_lastTime = std::chrono::steady_clock::now();
-}
-
-MYSQL *Connection::getconnection()
-{
-    return m_conn;
 }
 
 bool Connection::beginTransaction()

@@ -10,6 +10,7 @@
 #include "groupuser.h"
 #include "offlinemsgdao.h"
 #include "user.h"
+#include "Logger.h"
 EventLoop *gloop = nullptr;
 void resethandler(int sigNum)
 {
@@ -34,6 +35,7 @@ int main()
     //     std::cout << "插入失败" << std::endl;
     // }
     // return 0;
+    Logger::getInstance().setLogLevel(LogLevel::INFO);
     gloop = new EventLoop();
     ChatServer m_server(gloop, 9999, "192.168.65.4");
     m_server.start();

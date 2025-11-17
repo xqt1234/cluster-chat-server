@@ -92,7 +92,7 @@ int showUI::showChatMain()
 {
     showhelp();
     std::thread t1(std::bind(&showUI::showMsg, this));
-    while (true)
+    while (!m_quit)
     {
         std::string commandBuf = inputString("");
         std::string command;
@@ -105,7 +105,6 @@ int showUI::showChatMain()
         {
             command = commandBuf.substr(0, index);
         }
-        std::cout << command << std::endl;
         auto &tmap = ClientService::getInstance().getHandleMap();
         auto it = tmap.find(command);
         if (it == tmap.end())
@@ -116,7 +115,6 @@ int showUI::showChatMain()
         std::string res = commandBuf.substr(index + 1, commandBuf.size() - index);
         it->second(res);
     }
-    m_quit = true;
     return 0;
 }
 

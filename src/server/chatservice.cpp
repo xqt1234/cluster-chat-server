@@ -9,9 +9,6 @@ ChatService::ChatService()
     m_handlemap.insert({static_cast<int>(MsgType::MSG_REG), std::bind(&ChatService::Register, this, _1, _2)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_CHAT_ONE), std::bind(&ChatService::ChatOne, this, _1, _2)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_ADD_FRIEND), std::bind(&ChatService::addFriend, this, _1, _2)});
-
-    // m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN),std::bind(&ChatService::Login,this,_1,_2)});
-    // m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN),std::bind(&ChatService::Login,this,_1,_2)});
 }
 
 ChatService::~ChatService()
@@ -34,7 +31,12 @@ void ChatService::Login(const TcpConnectionPtr &conn, json &js)
         conn->send(jsres.dump());
         return;
     }
-
+    auto it = m_clientsMap.find(id);
+    if(it != m_clientsMap.end())
+    {
+        it->second->shutdown();
+        m_clientsMap.erase(it);
+    }
     json resjs;
     resjs["msgid"] = static_cast<int>(MsgType::MSG_LOGIN_ACK);
     resjs["errno"] = 0;
@@ -108,6 +110,10 @@ void ChatService::ChatOne(const TcpConnectionPtr &conn, json &js)
     int userid = js["userid"];
     int toid = js["toid"];
     bool isfriend = RelationCache::getInstance().isFriend(userid, toid);
+    if(userid == toid)
+    {
+        isfriend = true;
+    }
     if (!isfriend)
     {
         json resjson;
@@ -179,7 +185,7 @@ void ChatService::addFriend(const TcpConnectionPtr &conn, json &js)
         std::string username = js["username"];
         friendjs["msg"] = std::string("被添加好友成功，对方是") + username;
         friendjs["friendid"] = userid;
-        friendjs["friendname"] = js["username"];
+        friendjs["friendname"] = username;
         it->second->send(friendjs.dump());
     }
 }

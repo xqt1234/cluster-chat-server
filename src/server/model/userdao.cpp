@@ -16,7 +16,7 @@ bool UserDAO::inserUser(User &user)
     std::cout << std::string(buf) << std::endl;
     if(conn->update(buf))
     {
-        int id = mysql_insert_id(conn->getconnection());
+        int id = conn->getLastId();
         user.setId(id);
         return true;
     }

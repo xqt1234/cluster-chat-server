@@ -12,7 +12,7 @@ std::vector<User> FriendDAO::query(int id)
     }
     char buf[1024];
 
-    snprintf(buf, sizeof(buf), "select a.id,a.username from user a join friend b on a.id = b.userid where b.userid = %d;", id);
+    snprintf(buf, sizeof(buf), "select a.id,a.username from user a join friend b on a.id = b.friendid where b.userid = %d;", id);
     DbRes res = conn->query(buf);
     if (res != nullptr)
     {
@@ -37,10 +37,9 @@ bool FriendDAO::addFriend(int userid, int friendid)
     }
     conn->beginTransaction();
     char buf[1024];
-    snprintf(buf, sizeof(buf), "insert into friend values(%d,%d)", userid, friendid);
+    snprintf(buf, sizeof(buf), "insert into friend values(%d,%d);", userid, friendid);
     char buf2[1024];
-    snprintf(buf2, sizeof(buf2), "insert into friend values(%d,%d)", friendid, userid);
-    conn->update(buf);
+    snprintf(buf2, sizeof(buf2), "insert into friend values(%d,%d);", friendid, userid);
     if (!conn->update(buf))
     {
         conn->rollback();

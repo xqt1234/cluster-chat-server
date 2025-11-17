@@ -17,15 +17,6 @@ bool ClientService::addFriend(std::string src)
     m_clientNet.send(js.dump());
     return true;
 }
-// bool ClientService::getFlush()
-// {
-//     if(m_needflush)
-//     {
-//         m_needflush = false;
-//         return true;
-//     }
-//     return false;
-// }
 ClientService::ClientService()
 {
     m_commandHandleMap.insert({"chat", std::bind(&ClientService::chatOne, this, std::placeholders::_1)});
@@ -53,6 +44,7 @@ void ClientService::chatOne(std::string src)
     js["userid"] = m_currentUser.getId();
     js["username"] = m_currentUser.getUserName();
     js["msg"] = src.substr(index + 1);
+    js["errno"] = 0;
     m_clientNet.send(js.dump());
 }
 
@@ -122,6 +114,7 @@ void ClientService::addCommand(std::string str, Func func)
 void ClientService::getRecv()
 {
     std::string resstr = m_clientNet.recvmsg();
+    std::cout << resstr << std::endl;
     json js = json::parse(resstr);
     int msgtype = js["msgid"];
     if (js["errno"] != 0)
@@ -137,14 +130,16 @@ void ClientService::getRecv()
         user.setId(frinedid);
         user.setUserName(friendname);
         m_friendVec.push_back(user);
+        std::cout << js["msg"] << std::endl;
         std::cout << "添加好友成功" << std::endl;
     }
-    else if (msgtype == static_cast<int>(MsgType::MSG_ADD_FRIEND))
+    else if (msgtype == static_cast<int>(MsgType::MSG_CHAT_ONE))
     {
         std::string off_friend = js["msg"];
-        m_offline_friend.push_back(off_friend);
+        std::string username = js["username"];
+        m_offline_friend.push_back(username + "说:" + off_friend);
     }
-    else if (msgtype == static_cast<int>(MsgType::MSG_ADD_FRIEND))
+    else if (msgtype == static_cast<int>(MsgType::MSG_CHAT_GROUP))
     {
         std::string off_group = js["msg"];
         m_offline_group.push_back(off_group);

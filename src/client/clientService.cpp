@@ -4,48 +4,78 @@
 #include "public.h"
 #include <functional>
 #include "group.h"
-using json = nlohmann::json;
-bool ClientService::addFriend(std::string src)
-{
-    
-    json js;
-    js["msgid"] = static_cast<int>(MsgType::MSG_ADD_FRIEND);
-    //std::string friendstr = src.substr(0, index);
-    js["friendid"] = atoi(src.c_str());
-    js["userid"] = m_currentUser.getId();
-    js["username"] = m_currentUser.getUserName();
-    m_clientNet.send(js.dump());
-    return true;
-}
+#include <chrono>
+
 ClientService::ClientService()
 {
     m_commandHandleMap.insert({"chat", std::bind(&ClientService::chatOne, this, std::placeholders::_1)});
-    m_commandHandleMap.insert({"addfriend",std::bind(&ClientService::addFriend,this,std::placeholders::_1)});
+    m_commandHandleMap.insert({"addfriend", std::bind(&ClientService::addFriend, this, std::placeholders::_1)});
+    m_commandHandleMap.insert({"creategroup", std::bind(&ClientService::createGroup, this, std::placeholders::_1)});
+    m_commandHandleMap.insert({"addgroup", std::bind(&ClientService::addGroup, this, std::placeholders::_1)});
 }
-
-Func ClientService::getChatService(std::string &command)
+bool ClientService::addFriend(std::string src)
 {
-    return Func();
+    json js{
+        {"friendid", atoi(src.c_str())}};
+    json sendjs = buildResponse(js, MsgType::MSG_ADD_FRIEND);
+    return m_clientNet.send(sendjs.dump());
 }
 
-void ClientService::chatOne(std::string src)
+bool ClientService::createGroup(std::string src)
+{
+    int index = src.find(":");
+    if (index == -1)
+    {
+        std::cout << "群组名称输入错误" << std::endl;
+        return false;
+    }
+    std::string groupname = src.substr(0, index);
+    std::string groupdesc = src.substr(index + 1);
+    json js{
+        {"groupname", groupname},
+        {"groupdesc", groupdesc}};
+    json sendjs = buildResponse(js, MsgType::MSG_CREATE_GROUP);
+    return m_clientNet.send(sendjs.dump());
+}
+
+bool ClientService::addGroup(std::string src)
+{
+    int groupid = atoi(src.c_str());
+    json js{
+        {"groupid", groupid}};
+    json sendjs = buildResponse(js, MsgType::MSG_JOIN_GROUP);
+    return m_clientNet.send(sendjs.dump());
+}
+
+// Func ClientService::getChatService(std::string &command)
+// {
+//     return Func();
+// }
+
+bool ClientService::chatOne(std::string src)
 {
     int index = src.find(":");
     if (index == -1)
     {
         std::cout << "好友id输入错误" << std::endl;
-        return;
+        return false;
     }
-    json js;
-    js["msgid"] = static_cast<int>(MsgType::MSG_CHAT_ONE);
     std::string friendstr = src.substr(0, index);
-    int friendid = atoi(friendstr.c_str());
-    js["toid"] = atoi(friendstr.c_str());
-    js["userid"] = m_currentUser.getId();
-    js["username"] = m_currentUser.getUserName();
-    js["msg"] = src.substr(index + 1);
-    js["errno"] = 0;
-    m_clientNet.send(js.dump());
+    std::string msg = src.substr(index + 1);
+    json js{
+        {"toid", atoi(friendstr.c_str())},
+        {"userid", m_currentUser.getId()},
+        {"msg", msg}};
+    json sendjs = buildResponse(js, MsgType::MSG_PRIVATE_CHAT);
+    return m_clientNet.send(sendjs.dump());
+}
+
+inline long long ClientService::getCurrentTimeMillis()
+{
+    auto now = std::chrono::system_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               now.time_since_epoch())
+        .count();
 }
 
 ClientService &ClientService::getInstance()
@@ -59,7 +89,17 @@ bool ClientService::sendlogin(std::string &str)
     if (m_clientNet.send(str))
     {
         std::string resmsg = m_clientNet.recvmsg();
-        return setState(resmsg);
+        json jsres;
+        ValidResult res = checkValid(resmsg, jsres);
+        if (res.success)
+        {
+            return setState(jsres["data"]);
+        }
+        else
+        {
+            std::cout << res.message << std::endl;
+            return false;
+        }
     }
     return false;
 }
@@ -69,28 +109,20 @@ bool ClientService::sendregister(std::string &str)
     if (m_clientNet.send(str))
     {
         std::string resmsg = m_clientNet.recvmsg();
-        json js;
-        try
+        json jsres;
+        ValidResult res = checkValid(resmsg, jsres);
+        if (res.success)
         {
-            js = json::parse(resmsg);
-        }
-        catch (const std::exception &e)
-        {
-            std::cerr << "json解析错误" << std::endl;
-            return false;
-        }
-        if (js["errno"] != 0)
-        {
-            std::cout << "注册失败" << std::endl;
-            return false;
+            jsres = jsres["data"];
+            int userid = jsres["userid"];
+            std::string username = jsres["username"];
+            std::cout << "注册成功，账号是：" << userid << " 请记住您的账号" << std::endl;
+            return true;
         }
         else
         {
-            int userid = js["userid"];
-            std::string username = js["username"];
-            std::cout << "注册成功，账号是：" << userid << " 请记住您的账号" << std::endl;
+            std::cout << res.message << std::endl;
         }
-        return true;
     }
     return false;
 }
@@ -115,34 +147,68 @@ void ClientService::getRecv()
 {
     std::string resstr = m_clientNet.recvmsg();
     std::cout << resstr << std::endl;
-    json js = json::parse(resstr);
-    int msgtype = js["msgid"];
-    if (js["errno"] != 0)
+    json resjs;
+    ValidResult res = checkValid(resstr, resjs);
+    if (!res.success)
     {
-        std::cout << js["errmsg"] << std::endl;
+        std::cout << res.message << std::endl;
         return;
     }
-    if (msgtype == static_cast<int>(MsgType::MSG_ADD_FRIEND))
+
+    int msgtype = resjs["msgid"];
+    json datajs = resjs["data"];
+    if (msgtype == static_cast<int>(MsgType::MSG_ADD_FRIEND_ACK))
     {
-        int frinedid = js["friendid"];
-        std::string friendname = js["friendname"];
-        User user;
-        user.setId(frinedid);
-        user.setUserName(friendname);
-        m_friendVec.push_back(user);
-        std::cout << js["msg"] << std::endl;
+        int frinedid = datajs.value("friendid", -1);
+        std::string friendname = datajs.value("friendname", std::string());
+        if (frinedid != -1)
+        {
+            User user;
+            user.setId(frinedid);
+            user.setUserName(friendname);
+            m_friendVec.emplace(user.getId(),std::move(user));
+        }
+        std::cout << datajs.value("msg", std::string()) << std::endl;
         std::cout << "添加好友成功" << std::endl;
     }
-    else if (msgtype == static_cast<int>(MsgType::MSG_CHAT_ONE))
+    else if (msgtype == static_cast<int>(MsgType::MSG_PRIVATE_CHAT_ACK))
     {
-        std::string off_friend = js["msg"];
-        std::string username = js["username"];
+        std::string off_friend = datajs.value("msg", std::string());
+        int fromid = datajs.value("fromid",-1);
+        auto it = m_friendVec.find(fromid);
+        if(it == m_friendVec.end())
+        {
+            std::cout << "消息来源id获取失败" << std::endl;
+            return;
+        }
+        std::string username = it->second.getUserName();
         m_offline_friend.push_back(username + "说:" + off_friend);
     }
-    else if (msgtype == static_cast<int>(MsgType::MSG_CHAT_GROUP))
+    else if (msgtype == static_cast<int>(MsgType::MSG_GROUP_CHAT_ACK))
     {
-        std::string off_group = js["msg"];
+        std::string off_group = datajs.value("msg", std::string());
         m_offline_group.push_back(off_group);
+    }
+    else if (msgtype == static_cast<int>(MsgType::MSG_CREATE_GROUP_ACK))
+    {
+        if (datajs.contains("groups") && datajs["groups"].is_array())
+        {
+            for (auto &gitem : datajs["groups"])
+            {
+                if (!gitem.is_object())
+                {
+                    continue;
+                }
+                Group tgroup;
+                int id = gitem.value("groupid", -1);
+                tgroup.setId(id);
+                tgroup.setDesc(gitem.value("groupdesc", std::string()));
+                tgroup.setName(gitem.value("groupname", std::string()));
+                m_groupVec.push_back(tgroup);
+            }
+        }
+        std::string off_group = datajs.value("msg", std::string());
+        m_offline_friend.push_back(off_group);
     }
 }
 
@@ -151,80 +217,122 @@ std::unordered_map<std::string, Func> &ClientService::getHandleMap()
     return m_commandHandleMap;
 }
 
-bool ClientService::setState(std::string &str)
+bool ClientService::setState(json &js)
 {
-    json js;
-    try
+    if (js.contains("userinfo") && js["userinfo"].is_object())
     {
-        js = json::parse(str);
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "json解析错误" << std::endl;
-        return false;
-    }
-    if (js["errno"] != 0)
-    {
-        std::cerr << js["errmsg"] << std::endl;
-        return false;
-    }
-    m_currentUser.setId(js["userid"]);
-    m_currentUser.setUserName(js["username"]);
-    if (js.contains("friends"))
-    {
-        std::vector<std::string> friendsvec = js["friends"];
-        for (auto &val : friendsvec)
+        int userid = js["userinfo"].value("userid", -1);
+        std::string username = js["userinfo"].value("username", "");
+        if (userid == -1 || username == "")
         {
-            json tmpjs = json::parse(val);
-            User user;
-            user.setId(tmpjs["userid"]);
-            user.setUserName(tmpjs["username"]);
-            user.setState(tmpjs["state"]);
-            m_friendVec.emplace_back(std::move(user));
+            return false;
         }
+        m_currentUser.setId(userid);
+        m_currentUser.setUserName(username);
     }
-    if (js.contains("groups"))
+    if (js.contains("friends") && js["friends"].is_array())
     {
-        std::vector<std::string> tmpgroupvec = js["groups"];
-        for (auto &group : tmpgroupvec)
+        for (auto &f : js["friends"])
         {
-            json tmpgroup = js.parse(group);
-            Group tgroup;
-            tgroup.setId(js["groupid"]);
-            tgroup.setDesc(js["groupdesc"]);
-            tgroup.setName(js["groupname"]);
-            std::vector<std::string> tmpgroupuserstr = tmpgroup["groupusers"];
-            for (auto &tuser : tmpgroupuserstr)
+            if (!f.is_object())
             {
-                json tmpjs = json::parse(tuser);
-                GroupUser groupuser;
-                groupuser.setId(tmpjs["userid"]);
-                groupuser.setUserName(tmpjs["username"]);
-                groupuser.setState(tmpjs["state"]);
-                groupuser.setRole(tmpjs["role"]);
-                tgroup.getGroupUser().emplace_back(std::move(groupuser));
+                continue;
             }
+            User user;
+            user.setId(f.value("userid", -1));
+            user.setUserName(f.value("username", std::string()));
+            user.setState(f.value("state", std::string()));
+            m_friendVec.emplace(user.getId(),std::move(user));
         }
     }
-    if (js.contains("offlinemsg"))
+
+    if (js.contains("groups") && js["groups"].is_array())
     {
-        std::vector<std::string> vec = js["offlinemsg"];
-        for (std::string &str : vec)
+        for (auto &g : js["groups"])
         {
-            json offlinemsg = json::parse(str);
-            int msgtype = offlinemsg["msgid"];
-            std::string res;
-            if (msgtype == static_cast<int>(MsgType::MSG_CHAT_ONE))
+            if (!g.is_object())
             {
-                res += "好友离线消息";
+                continue;
+            }
+            Group tgroup;
+            int id = g.value("groupid", -1);
+            tgroup.setId(id);
+            tgroup.setDesc(g.value("groupdesc", std::string()));
+            tgroup.setName(g.value("groupname", std::string()));
+            m_groupVec.push_back(tgroup);
+        }
+    }
+    if (js.contains("offlinemsg") && js["offlinemsg"].is_array())
+    {
+        for (auto &item : js["offlinemsg"])
+        {
+            if (!item.is_object())
+            {
+                continue;
+            }
+            int msgtype = item.value("msgid", -1);
+            std::string res;
+            if (msgtype == static_cast<int>(MsgType::MSG_PRIVATE_CHAT_ACK))
+            {
+                res = "好友离线消息:" + item.value("msg", std::string());
                 m_offline_friend.push_back(res);
             }
-            else if (msgtype == static_cast<int>(MsgType::MSG_CHAT_GROUP))
+            else if (msgtype == static_cast<int>(MsgType::MSG_GROUP_CHAT_ACK))
             {
-                res += "群组离线消息";
+                res = "群组离线消息:" + item.value("msg", std::string());
                 m_offline_group.push_back(res);
             }
         }
     }
     return true;
+}
+
+json ClientService::buildResponse(json &obj, MsgType type)
+{
+    json response = {
+        {"msgid", static_cast<int>(type)},
+        {"timestamp", getCurrentTimeMillis()},
+        {"version", "1.0"},
+        {"token", "aaabxxx"},
+        {"userid", m_currentUser.getId()},
+        {"data", std::move(obj)}};
+    return response;
+}
+
+void ClientService::setdisconnectionCallBack(const disconnectionCallBack &cb)
+{
+    m_clientNet.setDisconnectionCallBack(cb);
+}
+
+ClientService::ValidResult ClientService::checkValid(std::string &src, json &data)
+{
+    std::string errmsg;
+    std::cout << "---" << src << std::endl;
+    if (src.empty())
+    {
+        return {false, ErrType::MESSAGE_EMPTY, "收到的数据为空"};
+    }
+    if (src.length() > MAX_JSON_LENGTH)
+    {
+        return {false, ErrType::MESSAGE_TOO_LONG, "接收到的数据过长"};
+    }
+    try
+    {
+        data = json::parse(src);
+    }
+    catch (const std::exception &e)
+    {
+        return {false, ErrType::INVALID_REQUEST, "json解析失败"};
+    }
+    if (data.value("msgid", -1) == -1)
+    {
+        errmsg = "消息类型错误";
+        return {false, ErrType::PARAM_TYPE_ERROR, errmsg};
+    }
+    if (!data.contains("data") || !data["data"].is_object())
+    {
+        errmsg = "没有有效数据";
+        return {false, ErrType::MESSAGE_EMPTY, errmsg};
+    }
+    return {true, ErrType::SUCCESS, ""};
 }

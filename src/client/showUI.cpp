@@ -12,7 +12,7 @@ showUI::showUI()
         {"help", "显示所有支持的命令，格式:help"},
         {"addfriend", "添加好友，格式:addfriend:friendid"},
         {"chat", "一对一聊天，格式:chat:friendid:message"},
-        {"createGroup", "创建群组，格式:createGroup:groupname:groupdesc"},
+        {"creategroup", "创建群组，格式:creategroup:groupname:groupdesc"},
         {"addgroup", "加入群组，格式:addgroup:groupid"},
         {"groupchat", "群聊，格式:groupchat:groupid:message"},
         {"flush", "刷新界面,格式:flush"},
@@ -21,20 +21,27 @@ showUI::showUI()
     ClientService::getInstance().addCommand("help", std::bind(&showUI::showhelp, this));
     ClientService::getInstance().addCommand("quit", std::bind(&showUI::quit, this));
     ClientService::getInstance().addCommand("flush", std::bind(&showUI::showUserMain, this));
+    ClientService::getInstance().setdisconnectionCallBack(std::bind(&showUI::disconnection,this));
 }
 bool showUI::showLogin()
 {
     // 第一段
     int usercode = inputInt("请输入账号:");
     std::string password = inputString("请输入密码:");
-    json js;
-    js["msgid"] = static_cast<int>(MsgType::MSG_LOGIN);
-    js["userid"] = usercode;
-    js["password"] = password;
-    std::string res = js.dump();
+    json js{
+        {"userid", usercode}, 
+        {"password", password}
+    };
+    json sendjs = ClientService::getInstance().buildResponse(js,MsgType::MSG_LOGIN);
+    std::string res = sendjs.dump();
     std::cout << res << std::endl;
-
-    return ClientService::getInstance().sendlogin(res);
+    bool ret = ClientService::getInstance().sendlogin(res);
+    if(!ret)
+    {
+        std::cout << "连接服务器失败" << std::endl;
+        return false;
+    }
+    return true;
 }
 
 int showUI::showStart()
@@ -51,10 +58,11 @@ bool showUI::showRegister()
 {
     std::string username = inputString("请输入用户名:");
     std::string password = inputString("请输入密码:");
-    json js;
-    js["msgid"] = static_cast<int>(MsgType::MSG_REG);
-    js["username"] = username;
-    js["password"] = password;
+    json js{
+        {"username", username},
+        {"password", password}
+    };
+    json sendjs = ClientService::getInstance().buildResponse(js,MsgType::MSG_REGISTER);
     std::string res = js.dump();
     return ClientService::getInstance().sendregister(res);
 }
@@ -66,12 +74,12 @@ void showUI::showUserMain()
     {
         return;
     }
-    const std::vector<User> &friendVec = ClientService::getInstance().getFriend();
+    const std::unordered_map<int,User> &friendVec = ClientService::getInstance().getFriend();
     std::cout << "当前登录用户编号：" << currentUser.getId() << " 用户名：" << currentUser.getUserName() << std::endl;
     std::cout << "好友列表：" << std::endl;
     for (auto &frienduser : friendVec)
     {
-        std::cout << "用户编号：" << frienduser.getId() << " 用户名：" << frienduser.getUserName() << std::endl;
+        std::cout << "用户编号：" << frienduser.second.getId() << " 用户名：" << frienduser.second.getUserName() << std::endl;
     }
     const std::vector<Group> &groupVec = ClientService::getInstance().getGroup();
     std::cout << "群组：" << std::endl;
@@ -80,11 +88,6 @@ void showUI::showUserMain()
         std::cout << "群号:" << groupusers.getId() << "群名："
                   << groupusers.getName() << "描述:"
                   << groupusers.getDesc() << std::endl;
-        for (auto &groupuser : groupusers.getGroupUser())
-        {
-            std::string state = groupuser.getState() == "online" ? "在线" : "离线";
-            std::cout << "用户编号：" << groupuser.getId() << " 用户名：" << groupuser.getUserName() << " " << state << std::endl;
-        }
     }
 }
 
@@ -95,6 +98,10 @@ int showUI::showChatMain()
     while (!m_quit)
     {
         std::string commandBuf = inputString("");
+        if(m_quit)
+        {
+            break;
+        }
         std::string command;
         int index = commandBuf.find(":");
         if (index == -1)
@@ -114,6 +121,10 @@ int showUI::showChatMain()
         }
         std::string res = commandBuf.substr(index + 1, commandBuf.size() - index);
         it->second(res);
+    }
+    if(t1.joinable())
+    {
+        t1.join();
     }
     return 0;
 }
@@ -185,4 +196,10 @@ void showUI::showMsg()
             std::cout << str << std::endl;
         }
     }
+}
+
+void showUI::disconnection()
+{
+    std::cout << "服务器关闭了连接" << std::endl;
+    m_quit = true;
 }

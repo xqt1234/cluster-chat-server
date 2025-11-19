@@ -9,6 +9,7 @@ public:
     ~GroupDAO() = default;
     bool insertGroup(Group& tgroup,int userid);
     bool removeGroup(int groupid);
+    bool addGroup(int groupid,int userid,std::string role);
     std::vector<Group> queryGroup(int userid);
 };
 

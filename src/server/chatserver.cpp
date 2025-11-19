@@ -25,6 +25,7 @@ void ChatServer::newConnection(const TcpConnectionPtr &conn)
         // std::cout << "断开连接" << std::endl;
     }
 }
+
 void ChatServer::start()
 {
     m_server->start();
@@ -39,21 +40,17 @@ void ChatServer::onMessage(const TcpConnectionPtr &conn, Buffer *buf)
 {
     std::string msg = buf->readAllAsString();
     std::cout << msg << std::endl;
-    if(msg == "")
-    {
-        return;
-    }
     json js;
-    try
+    ChatService::ValidResult res = m_service.checkValid(msg, js);
+    if (!res.success)
     {
-        js = json::parse(msg);
-    }
-    catch(const std::exception& e)
-    {
-        LOG_ERROR("解析错误");
+        js = m_service.buildErrorResponse(std::move(res));
+        conn->send(js.dump());
         return;
     }
     int msgid = js["msgid"];
+    int userid = js.value("userid",-1);
+    std::cout << "解析出来用户id是" << userid << std::endl;
     MsgHandle handle = m_service.getHandler(msgid);
-    handle(conn,js);
+    handle(conn, js["data"],userid);
 }

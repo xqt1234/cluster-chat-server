@@ -51,8 +51,20 @@ std::string ClientNet::recvmsg()
     {
         LOG_ERROR("收数据错误");
         return "";
+    }else if (n == 0) {
+        LOG_ERROR("服务器关闭了连接");
+        if(m_disconnection)
+        {
+            m_disconnection();
+        }
+        return "";
     }
     return std::string(buf,n);
+}
+
+void ClientNet::setDisconnectionCallBack(const DisconnectionCallBack &cb)
+{
+    m_disconnection = cb;
 }
 
 void ClientNet::init()

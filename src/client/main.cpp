@@ -8,10 +8,12 @@
 #include "group.h"
 #include "groupuser.h"
 #include <thread>
+#include "Logger.h"
 
 int main()
 {
     showUI ui;
+    Logger::getInstance().setLogLevel(LogLevel::DEBUG);
     int n = 1;
     while (n != 0)
     {

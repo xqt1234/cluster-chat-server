@@ -12,7 +12,7 @@ private:
     std::vector<GroupUser> m_userVec;
 
 public:
-    Group(int id = -1, const std::string &groupname = "", const std::string &groupdesc = "")
+    Group(const std::string &groupname = "", const std::string &groupdesc = "",int id = -1)
         : m_groupid(id), m_groupname(groupname), m_groupdesc(groupdesc) {}
     ~Group() = default;
     void setId(int id) { m_groupid = id; }

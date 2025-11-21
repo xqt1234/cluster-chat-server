@@ -11,6 +11,8 @@
 #include "public.h"
 #include <unordered_map>
 #include <mutex>
+#include "redisTool.h"
+#include "tokenManager.h"
 using json = nlohmann::json;
 using MsgHandle = std::function<void(const TcpConnectionPtr &conn, json &js,int userid)>;
 class ChatService
@@ -30,6 +32,9 @@ private:
     std::unordered_map<int, MsgHandle> m_handlemap;
     std::unordered_map<int, TcpConnectionPtr> m_clientsMap;
     std::mutex m_clientsmapMtx;
+    RedisTool m_redis;
+    std::unique_ptr<TokenManager> m_tokenManager;
+
     static const size_t MAX_JSON_LENGTH = 1024 * 1024; // 1MB
 public:
     ChatService(/* args */);
@@ -44,7 +49,9 @@ public:
     ValidResult checkValid(std::string& str,json& data);
     inline long long getCurrentTimeMillis();
     json buildErrorResponse(ValidResult&& errmsg);
+    int checkToken(std::string& str);
 private:
     void queryGroup(int userid, json &js);
     json buildResponse(json& obj,MsgType type);
+    
 };

@@ -13,6 +13,8 @@ ChatService::ChatService()
     m_handlemap.insert({static_cast<int>(MsgType::MSG_ADD_FRIEND), std::bind(&ChatService::addFriend, this, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_CREATE_GROUP), std::bind(&ChatService::createGroup, this, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_JOIN_GROUP), std::bind(&ChatService::addGroup, this, _1, _2, _3)});
+    m_redis.connect();
+    m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
 }
 
 ChatService::~ChatService()
@@ -250,10 +252,12 @@ MsgHandle ChatService::getHandler(int msgid)
     auto it = m_handlemap.find(msgid);
     if (it == m_handlemap.end())
     {
-        auto func = [=](const TcpConnectionPtr &conn, json &js, int userid)
+        auto func = [this](const TcpConnectionPtr &conn, json &js, int userid)
         {
-            LOG_ERROR("消息类型有误{}", msgid);
+            json jsres = buildErrorResponse({true, ErrType::PARAM_TYPE_ERROR, "参数类型错误"});
+            conn->send(jsres.dump());
         };
+        LOG_ERROR("参数类型错误{}", msgid);
         return func;
     }
     return it->second;
@@ -288,9 +292,20 @@ json ChatService::buildResponse(json &obj, MsgType type)
     return response;
 }
 
+int ChatService::checkToken(std::string &str)
+{
+    auto res = m_tokenManager->getUserIdByToken(str);
+    if(res)
+    {
+        return res.value();
+    }else
+    {
+        return -1;
+    }
+}
+
 ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
 {
-    std::string errmsg;
     if (src.empty())
     {
         return {false, ErrType::MESSAGE_EMPTY, "请求数据为空"};
@@ -310,22 +325,15 @@ ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
 
     if (data.value("msgid", -1) == -1)
     {
-        errmsg = "消息类型错误";
-        return {false, ErrType::PARAM_TYPE_ERROR, errmsg};
+        return {false, ErrType::PARAM_TYPE_ERROR, "消息类型错误"};
+    }
+    if(data["msgid"] != MsgType::MSG_LOGIN && data.value("token","") == "")
+    {
+        return {false, ErrType::MISSING_PARAM, "没有token消息"};
     }
     if (!data.contains("data") || !data["data"].is_object())
     {
-        errmsg = "没有有效数据";
-        return {false, ErrType::MESSAGE_EMPTY, errmsg};
-    }
-    // 等修改token在这里验证。
-    if (!data.contains("userid") || !data["userid"].is_number())
-    {
-        if (data["msgid"] != MsgType::MSG_REGISTER)
-        {
-            errmsg = "用户参数错误";
-            return {false, ErrType::INVALID_PARAMS, errmsg};
-        }
+        return {false, ErrType::MESSAGE_EMPTY, "没有有效数据"};
     }
     return {true, ErrType::SUCCESS, ""};
 }

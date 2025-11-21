@@ -49,8 +49,17 @@ void ChatServer::onMessage(const TcpConnectionPtr &conn, Buffer *buf)
         return;
     }
     int msgid = js["msgid"];
-    int userid = js.value("userid",-1);
-    std::cout << "解析出来用户id是" << userid << std::endl;
-    MsgHandle handle = m_service.getHandler(msgid);
-    handle(conn, js["data"],userid);
+    std::string token = js["token"];
+    int userid = m_service.checkToken(token);
+    if (userid != -1 || (msgid != static_cast<int>(MsgType::MSG_LOGIN)))
+    {
+        std::cout << "解析出来用户id是" << userid << std::endl;
+        MsgHandle handle = m_service.getHandler(msgid);
+        handle(conn, js["data"], userid);
+    }
+    else
+    {
+        json jsres = m_service.buildErrorResponse({true, ErrType::TOKEN_EXPIRED, "token过期"});
+        conn->send(jsres.dump());
+    }
 }

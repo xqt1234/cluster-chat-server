@@ -8,9 +8,9 @@
     "msgid": 1000,
     "timestamp":1633024567890,
 	"version": "1.0",
-	"token":"xxxxzzz",
-	"userid":123,
+	"token":"",
     "data":{
+		"userid":123,
         "password":"加密密码"
     }
 }

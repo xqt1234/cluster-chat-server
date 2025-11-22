@@ -13,6 +13,7 @@
 #include <mutex>
 #include "redisTool.h"
 #include "tokenManager.h"
+#include <unordered_set>
 using json = nlohmann::json;
 using MsgHandle = std::function<void(const TcpConnectionPtr &conn, json &js,int userid)>;
 class ChatService
@@ -31,6 +32,7 @@ private:
     OffineMessageDAO m_offlinemsgdao;
     std::unordered_map<int, MsgHandle> m_handlemap;
     std::unordered_map<int, TcpConnectionPtr> m_clientsMap;
+    std::unordered_map<TcpConnectionPtr, int> m_clientsMapPtr;
     std::mutex m_clientsmapMtx;
     RedisTool m_redis;
     std::unique_ptr<TokenManager> m_tokenManager;
@@ -40,6 +42,7 @@ public:
     ChatService(/* args */);
     ~ChatService();
     void Login(const TcpConnectionPtr &conn, json &js,int userid);
+    void LoginByToken(const TcpConnectionPtr &conn, json &js,int userid);
     void Register(const TcpConnectionPtr &conn, json &js,int userid);
     void ChatOne(const TcpConnectionPtr &conn, json &js,int userid);
     void addFriend(const TcpConnectionPtr &conn, json &js,int userid);
@@ -50,8 +53,11 @@ public:
     inline long long getCurrentTimeMillis();
     json buildErrorResponse(ValidResult&& errmsg);
     int checkToken(std::string& str);
+    void removeConnection(const TcpConnectionPtr &conn);
 private:
     void queryGroup(int userid, json &js);
     json buildResponse(json& obj,MsgType type);
+    void buildLoginInfo(const TcpConnectionPtr &conn, json &js,User& user,bool loginbytoken);
+    void sendMsgToAllDevice(json &sendjson,int toid);
     
 };

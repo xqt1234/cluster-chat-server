@@ -2,6 +2,7 @@
 /src/client/client
 /build
 src/client/log/*
+src/client/token/*
 src/server/log/*
 /.vscode/settings.json
 /.vscode/

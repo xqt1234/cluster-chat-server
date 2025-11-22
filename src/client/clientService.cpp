@@ -5,9 +5,10 @@
 #include <functional>
 #include "group.h"
 #include <chrono>
-
+#include <fstream>
 ClientService::ClientService()
 {
+    m_clientNet.connect();
     m_commandHandleMap.insert({"chat", std::bind(&ClientService::chatOne, this, std::placeholders::_1)});
     m_commandHandleMap.insert({"addfriend", std::bind(&ClientService::addFriend, this, std::placeholders::_1)});
     m_commandHandleMap.insert({"creategroup", std::bind(&ClientService::createGroup, this, std::placeholders::_1)});
@@ -17,7 +18,7 @@ bool ClientService::addFriend(std::string src)
 {
     json js{
         {"friendid", atoi(src.c_str())}};
-    json sendjs = buildResponse(js, MsgType::MSG_ADD_FRIEND);
+    json sendjs = buildRequest(js, MsgType::MSG_ADD_FRIEND);
     return m_clientNet.send(sendjs.dump());
 }
 
@@ -34,7 +35,7 @@ bool ClientService::createGroup(std::string src)
     json js{
         {"groupname", groupname},
         {"groupdesc", groupdesc}};
-    json sendjs = buildResponse(js, MsgType::MSG_CREATE_GROUP);
+    json sendjs = buildRequest(js, MsgType::MSG_CREATE_GROUP);
     return m_clientNet.send(sendjs.dump());
 }
 
@@ -43,14 +44,9 @@ bool ClientService::addGroup(std::string src)
     int groupid = atoi(src.c_str());
     json js{
         {"groupid", groupid}};
-    json sendjs = buildResponse(js, MsgType::MSG_JOIN_GROUP);
+    json sendjs = buildRequest(js, MsgType::MSG_JOIN_GROUP);
     return m_clientNet.send(sendjs.dump());
 }
-
-// Func ClientService::getChatService(std::string &command)
-// {
-//     return Func();
-// }
 
 bool ClientService::chatOne(std::string src)
 {
@@ -66,7 +62,7 @@ bool ClientService::chatOne(std::string src)
         {"toid", atoi(friendstr.c_str())},
         {"userid", m_currentUser.getId()},
         {"msg", msg}};
-    json sendjs = buildResponse(js, MsgType::MSG_PRIVATE_CHAT);
+    json sendjs = buildRequest(js, MsgType::MSG_PRIVATE_CHAT);
     return m_clientNet.send(sendjs.dump());
 }
 
@@ -78,30 +74,22 @@ inline long long ClientService::getCurrentTimeMillis()
         .count();
 }
 
-ClientService &ClientService::getInstance()
-{
-    static ClientService service;
-    return service;
-}
-
-bool ClientService::sendlogin(std::string &str)
+ClientService::ValidResult ClientService::sendlogin(std::string &str)
 {
     if (m_clientNet.send(str))
     {
+        std::cout << str << std::endl;
         std::string resmsg = m_clientNet.recvmsg();
+        std::cout << resmsg << std::endl;
         json jsres;
         ValidResult res = checkValid(resmsg, jsres);
         if (res.success)
         {
-            return setState(jsres["data"]);
+            setState(jsres["data"]);
         }
-        else
-        {
-            std::cout << res.message << std::endl;
-            return false;
-        }
+        return res;
     }
-    return false;
+    return {false, ErrType::NETWORK_ERROR, "发送错误"};
 }
 
 bool ClientService::sendregister(std::string &str)
@@ -154,7 +142,6 @@ void ClientService::getRecv()
         std::cout << res.message << std::endl;
         return;
     }
-
     int msgtype = resjs["msgid"];
     json datajs = resjs["data"];
     if (msgtype == static_cast<int>(MsgType::MSG_ADD_FRIEND_ACK))
@@ -166,7 +153,7 @@ void ClientService::getRecv()
             User user;
             user.setId(frinedid);
             user.setUserName(friendname);
-            m_friendVec.emplace(user.getId(),std::move(user));
+            m_friendVec.emplace(user.getId(), std::move(user));
         }
         std::cout << datajs.value("msg", std::string()) << std::endl;
         std::cout << "添加好友成功" << std::endl;
@@ -174,9 +161,9 @@ void ClientService::getRecv()
     else if (msgtype == static_cast<int>(MsgType::MSG_PRIVATE_CHAT_ACK))
     {
         std::string off_friend = datajs.value("msg", std::string());
-        int fromid = datajs.value("fromid",-1);
+        int fromid = datajs.value("fromid", -1);
         auto it = m_friendVec.find(fromid);
-        if(it == m_friendVec.end())
+        if (it == m_friendVec.end())
         {
             std::cout << "消息来源id获取失败" << std::endl;
             return;
@@ -212,6 +199,16 @@ void ClientService::getRecv()
     }
 }
 
+void ClientService::choiceUserToken(int userid)
+{
+    m_token = Token::getInstance().readToken(userid);
+}
+
+void ClientService::removeUserToken()
+{
+    Token::getInstance().clearToken(m_currentUser.getId());
+}
+
 std::unordered_map<std::string, Func> &ClientService::getHandleMap()
 {
     return m_commandHandleMap;
@@ -242,7 +239,7 @@ bool ClientService::setState(json &js)
             user.setId(f.value("userid", -1));
             user.setUserName(f.value("username", std::string()));
             user.setState(f.value("state", std::string()));
-            m_friendVec.emplace(user.getId(),std::move(user));
+            m_friendVec.emplace(user.getId(), std::move(user));
         }
     }
 
@@ -284,16 +281,21 @@ bool ClientService::setState(json &js)
             }
         }
     }
+    if(js.contains("token"))
+    {
+        m_token = js["token"];
+        Token::getInstance().saveToken(m_token,m_currentUser.getId());
+    }
     return true;
 }
 
-json ClientService::buildResponse(json &obj, MsgType type)
+json ClientService::buildRequest(json &obj, MsgType type)
 {
     json response = {
         {"msgid", static_cast<int>(type)},
         {"timestamp", getCurrentTimeMillis()},
         {"version", "1.0"},
-        {"token", "aaabxxx"},
+        {"token", m_token},
         {"userid", m_currentUser.getId()},
         {"data", std::move(obj)}};
     return response;
@@ -329,10 +331,9 @@ ClientService::ValidResult ClientService::checkValid(std::string &src, json &dat
         errmsg = "消息类型错误";
         return {false, ErrType::PARAM_TYPE_ERROR, errmsg};
     }
-    if (!data.contains("data") || !data["data"].is_object())
+    if(data["msgid"] == MsgType::MSG_ERROR)
     {
-        errmsg = "没有有效数据";
-        return {false, ErrType::MESSAGE_EMPTY, errmsg};
+        return {false, ErrType::PARAM_TYPE_ERROR, errmsg};
     }
     return {true, ErrType::SUCCESS, ""};
 }

@@ -5,13 +5,18 @@ enum class MsgType
     // 认证模块 1000-1999
     MSG_LOGIN = 1000,
     MSG_LOGIN_ACK = 1001,
+
     MSG_LOGOUT = 1002,
     MSG_LOGOUT_ACK = 1003,
+    MSG_LOGIN_BY_TOKEN = 1004,
+    MSG_LOGIN_BY_TOKEN_ACK = 1005,
 
     MSG_REGISTER = 1100,
     MSG_REGISTER_ACK = 1101,
 
-    // 好友管理 2000-2999
+    MSG_TOKEN_EXPIRED = 1104,     // Token 过期通知
+    MSG_TOKEN_EXPIRED_ACK = 1105, // 刷新 Token 请求
+                                  // 好友管理 2000-2999
     MSG_ADD_FRIEND = 2000,
     MSG_ADD_FRIEND_ACK = 2001,
     MSG_DELETE_FRIEND = 2002,

@@ -18,11 +18,13 @@ void ChatServer::newConnection(const TcpConnectionPtr &conn)
 {
     if (conn->isConnected())
     {
-        // std::cout << "启用外面的回调" << std::endl;
+        std::cout << "启用外面的回调" << std::endl;
     }
     else
     {
-        // std::cout << "断开连接" << std::endl;
+        std::cout << "连接被关闭" << std::endl;
+        m_service.removeConnection(conn);
+        conn->shutdown();
     }
 }
 
@@ -51,7 +53,7 @@ void ChatServer::onMessage(const TcpConnectionPtr &conn, Buffer *buf)
     int msgid = js["msgid"];
     std::string token = js["token"];
     int userid = m_service.checkToken(token);
-    if (userid != -1 || (msgid != static_cast<int>(MsgType::MSG_LOGIN)))
+    if (userid != -1 || (msgid == static_cast<int>(MsgType::MSG_LOGIN)))
     {
         std::cout << "解析出来用户id是" << userid << std::endl;
         MsgHandle handle = m_service.getHandler(msgid);

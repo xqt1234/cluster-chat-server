@@ -16,5 +16,5 @@
 //     std::this_thread::sleep_for(std::chrono::seconds(2));
 //     return 0;
 // }
-//g++ --std=c++20 test.cpp redisTool.cpp -lredis++ -lhiredis -lpthread
+//g++ --std=c++20 test.cpp redisTool.cpp Logger.cpp -lredis++ -lhiredis -lpthread
 

@@ -9,7 +9,8 @@ private:
 public:
     TokenManager(sw::redis::Redis& redis):m_redis(redis){}
     ~TokenManager() = default;
-    std::string generateToken(int userid);
+    std::string generateToken(int userid,std::string& devicename);
+    void removeToken(int userid,std::string& devicename);
     bool logout(std::string token);
     std::optional<int> getUserIdByToken(std::string &str);
 };

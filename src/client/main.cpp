@@ -10,7 +10,7 @@
 #include <thread>
 #include "Logger.h"
 
-int main()
+int main(int args,char**argv)
 {
     showUI ui;
     Logger::getInstance().setLogLevel(LogLevel::DEBUG);
@@ -31,7 +31,12 @@ int main()
             }
             ui.showUserMain();
             ui.showofflineMsg();
-            ui.showChatMain();
+            int type = ui.showChatMain();
+            std::cout << "type:" << type << std::endl;
+            if(type == -1)
+            {
+                return 0;
+            }
         }
         break;
         case 2:

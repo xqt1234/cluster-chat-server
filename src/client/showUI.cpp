@@ -16,29 +16,35 @@ showUI::showUI()
         {"addgroup", "加入群组，格式:addgroup:groupid"},
         {"groupchat", "群聊，格式:groupchat:groupid:message"},
         {"flush", "刷新界面,格式:flush"},
-        {"quit", "退出登录,格式:quit"},
+        {"quit", "关闭软件,格式:quit"},
+        {"logout","注销登录，格式:logout"}
     };
-    ClientService::getInstance().addCommand("help", std::bind(&showUI::showhelp, this));
-    ClientService::getInstance().addCommand("quit", std::bind(&showUI::quit, this));
-    ClientService::getInstance().addCommand("flush", std::bind(&showUI::showUserMain, this));
-    ClientService::getInstance().setdisconnectionCallBack(std::bind(&showUI::disconnection,this));
+    m_service.addCommand("help", std::bind(&showUI::showhelp, this));
+    m_service.addCommand("quit", std::bind(&showUI::quit, this));
+    m_service.addCommand("flush", std::bind(&showUI::showUserMain, this));
+    m_service.addCommand("logout", std::bind(&showUI::logout, this));
+    m_service.setdisconnectionCallBack(std::bind(&showUI::disconnection,this));
 }
 bool showUI::showLogin()
 {
-    // 第一段
+    if(m_hasLogin)
+    {
+        return true;
+    }
+     json sendjs;
     int usercode = inputInt("请输入账号:");
     std::string password = inputString("请输入密码:");
     json js{
-        {"userid", usercode}, 
+        {"userid", usercode},
         {"password", password}
     };
-    json sendjs = ClientService::getInstance().buildResponse(js,MsgType::MSG_LOGIN);
+    sendjs = m_service.buildRequest(js,MsgType::MSG_LOGIN);
     std::string res = sendjs.dump();
     std::cout << res << std::endl;
-    bool ret = ClientService::getInstance().sendlogin(res);
-    if(!ret)
+    ClientService::ValidResult ret = m_service.sendlogin(res);
+    if(!ret.success)
     {
-        std::cout << "连接服务器失败" << std::endl;
+        std::cout << "登录失败----" << ret.message << std::endl;
         return false;
     }
     return true;
@@ -46,6 +52,21 @@ bool showUI::showLogin()
 
 int showUI::showStart()
 {
+    // 1、直接用token登录，返回token不存在或者过期，重新登录
+    int userid = inputInt("请选择输入登录的用户");
+    json loginjs{
+        {"device","pc"}
+    };
+    m_service.choiceUserToken(userid);
+    json sendjs = m_service.buildRequest(loginjs,MsgType::MSG_LOGIN_BY_TOKEN);
+    std::string sendstr = sendjs.dump();
+    ClientService::ValidResult ret = m_service.sendlogin(sendstr);
+    if(ret.success)
+    {
+        m_hasLogin = true;
+        return 1;
+    }
+    // 错误消息就重新登录
     std::cout << "--------请输入------" << std::endl;
 
     std::cout << "1:登录" << std::endl;
@@ -62,26 +83,26 @@ bool showUI::showRegister()
         {"username", username},
         {"password", password}
     };
-    json sendjs = ClientService::getInstance().buildResponse(js,MsgType::MSG_REGISTER);
+    json sendjs = m_service.buildRequest(js,MsgType::MSG_REGISTER);
     std::string res = js.dump();
-    return ClientService::getInstance().sendregister(res);
+    return m_service.sendregister(res);
 }
 
 void showUI::showUserMain()
 {
-    const User &currentUser = ClientService::getInstance().getCurrentUser();
+    const User &currentUser = m_service.getCurrentUser();
     if (currentUser.getId() == -1)
     {
         return;
     }
-    const std::unordered_map<int,User> &friendVec = ClientService::getInstance().getFriend();
+    const std::unordered_map<int,User> &friendVec = m_service.getFriend();
     std::cout << "当前登录用户编号：" << currentUser.getId() << " 用户名：" << currentUser.getUserName() << std::endl;
     std::cout << "好友列表：" << std::endl;
     for (auto &frienduser : friendVec)
     {
         std::cout << "用户编号：" << frienduser.second.getId() << " 用户名：" << frienduser.second.getUserName() << std::endl;
     }
-    const std::vector<Group> &groupVec = ClientService::getInstance().getGroup();
+    const std::vector<Group> &groupVec = m_service.getGroup();
     std::cout << "群组：" << std::endl;
     for (auto &groupusers : groupVec)
     {
@@ -94,6 +115,7 @@ void showUI::showUserMain()
 int showUI::showChatMain()
 {
     showhelp();
+    m_quit = false;
     std::thread t1(std::bind(&showUI::showMsg, this));
     while (!m_quit)
     {
@@ -112,7 +134,7 @@ int showUI::showChatMain()
         {
             command = commandBuf.substr(0, index);
         }
-        auto &tmap = ClientService::getInstance().getHandleMap();
+        auto &tmap = m_service.getHandleMap();
         auto it = tmap.find(command);
         if (it == tmap.end())
         {
@@ -124,7 +146,11 @@ int showUI::showChatMain()
     }
     if(t1.joinable())
     {
-        t1.join();
+        t1.detach();
+    }
+    if(m_hasLogin)
+    {
+        return -1;
     }
     return 0;
 }
@@ -138,17 +164,25 @@ void showUI::showhelp()
 }
 void showUI::quit()
 {
+    m_hasLogin = true;
     m_quit = true;
+}
+
+void showUI::logout()
+{
+    m_quit = true;
+    m_hasLogin = false;
+    m_service.removeUserToken();
 }
 
 void showUI::showofflineMsg()
 {
-    const std::vector<std::string> &ofriendvec = ClientService::getInstance().getOfflineFriend();
+    const std::vector<std::string> &ofriendvec = m_service.getOfflineFriend();
     for (auto &str : ofriendvec)
     {
         std::cout << str << std::endl;
     }
-    const std::vector<std::string> &ogroupvec = ClientService::getInstance().getOfflineGroup();
+    const std::vector<std::string> &ogroupvec = m_service.getOfflineGroup();
     for (auto &str : ogroupvec)
     {
         std::cout << str << std::endl;
@@ -179,14 +213,13 @@ std::string showUI::inputString(const std::string &src)
 
 void showUI::showMsg()
 {
-    ClientService &service = ClientService::getInstance();
-    std::vector<std::string> &offline_friend = service.getOfflineFriend();
-    std::vector<std::string> &offline_group = service.getOfflineGroup();
+    std::vector<std::string> &offline_friend = m_service.getOfflineFriend();
+    std::vector<std::string> &offline_group = m_service.getOfflineGroup();
     while (!m_quit)
     {
         offline_friend.clear();
         offline_group.clear();
-        service.getRecv();
+        m_service.getRecv();
         for (auto &str : offline_friend)
         {
             std::cout << str << std::endl;

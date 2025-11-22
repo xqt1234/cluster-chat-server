@@ -6,12 +6,12 @@
 ClientNet::ClientNet()
 {
     init();
-    connect();
 }
 
 ClientNet::~ClientNet()
 {
     ::close(m_fd);
+    std::cout << "网络层被析构" << std::endl;
 }
 
 void ClientNet::connect()
@@ -38,7 +38,7 @@ bool ClientNet::send(const std::string& str)
         return false;
     }else
     {
-        LOG_INFO("发送成功");
+        LOG_DEBUG("发送成功");
     }
     return true;
 }

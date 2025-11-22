@@ -13,6 +13,7 @@ ChatService::ChatService()
     m_handlemap.insert({static_cast<int>(MsgType::MSG_ADD_FRIEND), std::bind(&ChatService::addFriend, this, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_CREATE_GROUP), std::bind(&ChatService::createGroup, this, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_JOIN_GROUP), std::bind(&ChatService::addGroup, this, _1, _2, _3)});
+    m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN_BY_TOKEN), std::bind(&ChatService::LoginByToken, this, _1, _2, _3)});
     m_redis.connect();
     m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
 }
@@ -39,51 +40,13 @@ void ChatService::Login(const TcpConnectionPtr &conn, json &js, int tmpid)
         conn->send(jsres.dump());
         return;
     }
-    auto it = m_clientsMap.find(userid);
-    if (it != m_clientsMap.end())
-    {
-        it->second->shutdown();
-        m_clientsMap.erase(it);
-    }
-    json resjs;
-    json userinfo{
-        {"userid", user.getId()},
-        {"username", user.getUserName()}};
-    resjs["userinfo"] = userinfo;
-    std::vector<User> friends = m_frienddao.query(userid);
-    if (!friends.empty())
-    {
-        std::vector<int> friendvec;
-        friendvec.reserve(friends.size());
-        std::vector<json> friendsobj;
-        friendsobj.reserve(friends.size());
-        for (auto &fuser : friends)
-        {
-            friendvec.push_back(fuser.getId());
-            friendsobj.emplace_back(json{
-                {"userid", fuser.getId()},
-                {"username", fuser.getUserName()},
-                {"state", fuser.getState()}});
-        }
-        RelationCache::getInstance().initFriends(user.getId(), friendvec);
-        resjs["friends"] = friendsobj;
-    }
-    std::vector<Group> groups = m_groupdao.queryGroup(user.getId());
-    if (!groups.empty())
-    {
-        std::vector<json> groupstr;
-        groupstr.reserve(groups.size());
-        for (auto &tgroup : groups)
-        {
-            groupstr.emplace_back(json({{"groupid", tgroup.getId()},
-                                        {"groupname", tgroup.getName()},
-                                        {"groupdesc", tgroup.getDesc()}}));
-        }
-        resjs["groups"] = groupstr;
-    }
-    m_clientsMap.insert({user.getId(), conn});
-    json sendjson = buildResponse(resjs, MsgType::MSG_LOGIN_ACK);
-    conn->send(sendjson.dump());
+    buildLoginInfo(conn,js,user,false);
+}
+
+void ChatService::LoginByToken(const TcpConnectionPtr &conn, json &js, int userid)
+{
+    User user = m_userdao.queryUser(userid);
+    buildLoginInfo(conn,js,user,true);
 }
 
 void ChatService::Register(const TcpConnectionPtr &conn, json &js, int userid)
@@ -96,8 +59,10 @@ void ChatService::Register(const TcpConnectionPtr &conn, json &js, int userid)
     bool res = m_userdao.inserUser(user);
     if (res)
     {
+        std::string devicename = js.value("devicename", "unknown");
         json resjs{{"userid", user.getId()},
-                   {"username", user.getUserName()}};
+                   {"username", user.getUserName()},
+                   {"token", m_tokenManager->generateToken(user.getId(), devicename)}};
         json sendjson = buildResponse(resjs, MsgType::MSG_LOGIN_ACK);
         conn->send(sendjson.dump());
         return;
@@ -127,7 +92,7 @@ void ChatService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
     }
     json resjs{
         {"msg", js["msg"]},
-        {"fromid",userid}};
+        {"fromid", userid}};
     json sendjson = buildResponse(resjs, MsgType::MSG_PRIVATE_CHAT_ACK);
     TcpConnectionPtr targetConn;
     {
@@ -138,13 +103,14 @@ void ChatService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
             targetConn = it->second;
         }
     }
-    if(targetConn)
+    if (targetConn)
     {
         targetConn->send(sendjson.dump());
-    }else
+    }
+    else
     {
-        //存储离线消息
-        m_offlinemsgdao.insert(toid,sendjson.dump());
+        // 存储离线消息
+        m_offlinemsgdao.insert(toid, sendjson.dump());
     }
 }
 
@@ -292,15 +258,89 @@ json ChatService::buildResponse(json &obj, MsgType type)
     return response;
 }
 
+void ChatService::buildLoginInfo(const TcpConnectionPtr &conn, json &js, User& user,bool loginbytoken)
+{
+    // auto it = m_clientsMap.find(user.getId());
+    // if (it != m_clientsMap.end())
+    // {
+    //     it->second->shutdown();
+    //     m_clientsMap.erase(it);
+    // }
+    int userid = user.getId();
+    json resjs;
+    json userinfo{
+        {"userid", user.getId()},
+        {"username", user.getUserName()}};
+    resjs["userinfo"] = userinfo;
+    std::vector<User> friends = m_frienddao.query(userid);
+    if (!friends.empty())
+    {
+        std::vector<int> friendvec;
+        friendvec.reserve(friends.size());
+        std::vector<json> friendsobj;
+        friendsobj.reserve(friends.size());
+        for (auto &fuser : friends)
+        {
+            friendvec.push_back(fuser.getId());
+            friendsobj.emplace_back(json{
+                {"userid", fuser.getId()},
+                {"username", fuser.getUserName()},
+                {"state", fuser.getState()}});
+        }
+        RelationCache::getInstance().initFriends(user.getId(), friendvec);
+        resjs["friends"] = friendsobj;
+    }
+    std::vector<Group> groups = m_groupdao.queryGroup(user.getId());
+    if (!groups.empty())
+    {
+        std::vector<json> groupstr;
+        groupstr.reserve(groups.size());
+        for (auto &tgroup : groups)
+        {
+            groupstr.emplace_back(json({{"groupid", tgroup.getId()},
+                                        {"groupname", tgroup.getName()},
+                                        {"groupdesc", tgroup.getDesc()}}));
+        }
+        resjs["groups"] = groupstr;
+    }
+    m_clientsMap.insert({user.getId(), conn});
+    m_clientsMapPtr.insert({conn,user.getId()});
+    // 检查token，如果当前用户当前设备，有token记录，并且可用，返回。没有就生成。
+    if(!loginbytoken)
+    {
+        std::string devicename = js.value("devicename", "unknown");
+        resjs["token"] = m_tokenManager->generateToken(userid, devicename);
+    }
+    json sendjson = buildResponse(resjs, MsgType::MSG_LOGIN_ACK);
+    conn->send(sendjson.dump());
+}
+
 int ChatService::checkToken(std::string &str)
 {
     auto res = m_tokenManager->getUserIdByToken(str);
-    if(res)
+    if (res)
     {
         return res.value();
-    }else
+    }
+    else
     {
         return -1;
+    }
+}
+
+void ChatService::removeConnection(const TcpConnectionPtr &conn)
+{
+    auto it =  m_clientsMapPtr.find(conn);
+    if(it != m_clientsMapPtr.end())
+    {
+        int userid = it->second;
+        auto userit = m_clientsMap.find(userid);
+        std::cout << "关闭连接userid:" << userid << std::endl;
+        m_clientsMapPtr.erase(it);
+        if(userit != m_clientsMap.end())
+        {
+            m_clientsMap.erase(userit);
+        }
     }
 }
 
@@ -322,14 +362,17 @@ ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
     {
         return {false, ErrType::INVALID_REQUEST, "json解析失败"};
     }
-
     if (data.value("msgid", -1) == -1)
     {
         return {false, ErrType::PARAM_TYPE_ERROR, "消息类型错误"};
     }
-    if(data["msgid"] != MsgType::MSG_LOGIN && data.value("token","") == "")
+    if (data["msgid"] == MsgType::MSG_LOGIN)
     {
-        return {false, ErrType::MISSING_PARAM, "没有token消息"};
+        return {true, ErrType::SUCCESS, "登录，通过验证，不检验载荷"};
+    }
+    if (data["msgid"] != MsgType::MSG_LOGIN && data.value("token", "") == "")
+    {
+        return {false, ErrType::TOKEN_EXPIRED, "没有token消息"};
     }
     if (!data.contains("data") || !data["data"].is_object())
     {

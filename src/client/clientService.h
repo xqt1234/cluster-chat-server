@@ -7,6 +7,7 @@
 #include "json.hpp"
 #include "public.h"
 #include "callbacks.h"
+#include "token.h"
 using json = nlohmann::json;
 
 class Group;
@@ -27,16 +28,18 @@ private:
     std::vector<std::string> m_offline_friend;
     std::vector<std::string> m_offline_group;
     ClientNet m_clientNet;
-
     std::unordered_map<std::string, Func> m_commandHandleMap;
-    //bool m_needflush{false};
 public:
-    static ClientService &getInstance();
-    bool sendlogin(std::string &str);
+    ClientService(/* args */);
+    ~ClientService() = default;
+    //static ClientService &getInstance();
+    ValidResult sendlogin(std::string &str);
     bool sendregister(std::string &str);
     bool handleService(std::string &str);
     void addCommand(std::string str, Func func);
     void getRecv();
+    void choiceUserToken(int userid);
+    void removeUserToken();
     std::unordered_map<std::string, Func> &getHandleMap();
     bool setState(json& js);
     const User &getCurrentUser() const { return m_currentUser; }
@@ -49,16 +52,15 @@ public:
     bool addFriend(std::string src);
     bool createGroup(std::string src);
     bool addGroup(std::string src);
-    //bool getFlush();
-    json buildResponse(json& obj,MsgType type);
+    json buildRequest(json& obj,MsgType type);
     void setdisconnectionCallBack(const disconnectionCallBack& cb);
+    
 private:
-    ClientService(/* args */);
-    ~ClientService() = default;
+    
     //Func getChatService(std::string &command);
     bool chatOne(std::string src);
     ValidResult checkValid(std::string& str,json& data);
     inline long long getCurrentTimeMillis();
     static const size_t MAX_JSON_LENGTH = 1024 * 1024; // 1MB
-
+    std::string m_token;
 };

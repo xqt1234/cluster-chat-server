@@ -8,16 +8,20 @@ std::vector<std::string> OffineMessageDAO::query(int userid)
     {
         return vec;
     }
-    char buf[1024];
-    snprintf(buf, sizeof(buf), "select id,message from offlinemessage where userid=%d order by id;", userid);
-    DbRes res = conn->query(buf);
-    if (res != nullptr)
+    try
     {
-        MYSQL_ROW row = nullptr;
-        while ((row = mysql_fetch_row(res.get())) != nullptr)
+        std::string sql = "select id,message from offlinemessage where userid=? order by id;";
+        auto stmt = conn->prepare(sql);
+        stmt->setInt(1, userid);
+        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+        while (res->next())
         {
-            vec.push_back(row[1]);
+            vec.push_back(res->getString("message"));
         }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
     }
     return vec;
 }
@@ -29,9 +33,19 @@ bool OffineMessageDAO::remove(int userid)
     {
         return false;
     }
-    char buf[1024];
-    snprintf(buf, sizeof(buf), "delete from offlinemssage where userid = %d;", userid);
-    return conn->update(buf);
+    try
+    {
+        std::string sql = "delete from offlinemssage where userid = ?;";
+        auto stmt = conn->prepare(sql);
+        stmt->execute();
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+        
+    }
+    return false;
 }
 
 bool OffineMessageDAO::insert(int userid, std::string msg)
@@ -41,7 +55,17 @@ bool OffineMessageDAO::insert(int userid, std::string msg)
     {
         return false;
     }
-    char buf[1024];
-    snprintf(buf,sizeof(buf),"insert into offlinemessage values(%d,'%s');",userid,msg.c_str());
-    return conn->update(buf);
+    try
+    {
+        std::string sql = "insert into offlinemessage values(?,?);";
+        auto stmt = conn->prepare(sql);
+        stmt->execute();
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+        
+    }
+    return false;
 }

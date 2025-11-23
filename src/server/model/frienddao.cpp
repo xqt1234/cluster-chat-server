@@ -2,6 +2,7 @@
 #include "connectionPool.h"
 #include "user.h"
 #include <iostream>
+
 std::vector<User> FriendDAO::query(int id)
 {
     std::vector<User> vec;
@@ -10,21 +11,28 @@ std::vector<User> FriendDAO::query(int id)
     {
         return vec;
     }
-    char buf[1024];
-
-    snprintf(buf, sizeof(buf), "select a.id,a.username from user a join friend b on a.id = b.friendid where b.userid = %d;", id);
-    DbRes res = conn->query(buf);
-    if (res != nullptr)
+    try
     {
-        MYSQL_ROW row = nullptr;
-        while ((row = mysql_fetch_row(res.get())) != nullptr)
+        std::string sql = "select a.id,a.username from user a join friend b on a.id = b.friendid where b.userid = ?;";
+        auto stmt = conn->prepare(sql);
+        if (stmt)
         {
-            User user;
-            user.setId(atoi(row[0]));
-            user.setUserName(row[1]);
-            vec.emplace_back(std::move(user));
+            stmt->setInt(1, id);
+            std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+            while (res->next())
+            {
+                User user;
+                user.setId(res->getInt("id"));
+                user.setUserName(res->getString("username"));
+                vec.emplace_back(std::move(user));
+            }
         }
     }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+
     return vec;
 }
 
@@ -35,23 +43,30 @@ bool FriendDAO::addFriend(int userid, int friendid)
     {
         return false;
     }
-    conn->beginTransaction();
-    char buf[1024];
-    snprintf(buf, sizeof(buf), "insert into friend values(%d,%d);", userid, friendid);
-    char buf2[1024];
-    snprintf(buf2, sizeof(buf2), "insert into friend values(%d,%d);", friendid, userid);
-    if (!conn->update(buf))
+    try
+    {
+        if (!conn->beginTransaction()) {
+            return false;
+        }
+        char buf[1024];
+        std::string sql1 = "insert into friend values(?,?);";
+        auto res1 = conn->prepare(sql1);
+        res1->setInt(1, userid);
+        res1->setInt(2, friendid);
+        res1->executeUpdate();
+        auto res2 = conn->prepare(sql1);
+        res2->setInt(1, friendid);
+        res2->setInt(2, userid);
+
+        res2->executeUpdate();
+        conn->commit();
+        return true;
+    }
+    catch (const std::exception &e)
     {
         conn->rollback();
-        return false;
     }
-    if (!conn->update(buf2))
-    {
-        conn->rollback();
-        return false;
-    }
-    conn->commit();
-    return true;
+    return false;
 }
 
 bool FriendDAO::isFriend(int userid, int friendid)
@@ -61,19 +76,23 @@ bool FriendDAO::isFriend(int userid, int friendid)
     {
         return false;
     }
-    char buf[1024];
-    snprintf(buf, sizeof(buf), "select 1 from friend where userid=%d and friendid=%d limit 1;", userid, friendid);
-    std::cout << buf << std::endl;
-    DbRes res = conn->query(buf);
-    if (res == nullptr)
+    try
     {
+        std::string sql = "select 1 from friend where userid=? and friendid=? limit 1;";
+        auto stmt = conn->prepare(sql);
+        stmt->setInt(1, userid);
+        stmt->setInt(2, friendid);
+        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+        if (res->next())
+        {
+            return true;
+        }
         return false;
+        /* code */
     }
-    MYSQL_ROW row = nullptr;
-    bool exist = false;
-    while((row = mysql_fetch_row(res.get())) != nullptr)
+    catch (const std::exception &e)
     {
-        exist = true;
+        // std::cerr << e.what() << '\n';
     }
-    return exist;
+    return false;
 }

@@ -110,10 +110,14 @@ void ConnectionPool::createDefaultTables(std::string filename)
     {
         for (auto &sql : sqlvec)
         {
-            bool res = conn->update(sql);
-            if(!res)
+            try
             {
-                LOG_ERROR("初始化表失败，可能数据库没建");
+                auto stmt = conn->prepare(sql);
+                stmt->execute();
+            }
+            catch(const std::exception& e)
+            {
+                LOG_ERROR("初始化表失败，可能数据库没建{}",e.what());
             }
         }
     }

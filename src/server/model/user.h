@@ -19,5 +19,5 @@ public:
     const std::string getState()const{return m_state;}
     const std::string getUserName()const { return m_username; }
     void setPassWord(std::string password) { m_password = password; }
-    std::string getPassWord() { return m_password; }
+    const std::string getPassWord() const { return m_password; }
 };

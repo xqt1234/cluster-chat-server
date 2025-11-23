@@ -9,4 +9,4 @@ include_directories(${PROJECT_SOURCE_DIR}/redis)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})
 add_executable(${PROJECT_NAME} ${SRC_LIST_E} ${SRC_LIST_2} ${SRC_LIST_3} ${SRC_LIST_4})
-target_link_libraries(${PROJECT_NAME} newmuduo mysqlclient redis++ hiredis ssl crypto pthread)
+target_link_libraries(${PROJECT_NAME} newmuduo mysqlcppconn redis++ hiredis ssl crypto pthread)

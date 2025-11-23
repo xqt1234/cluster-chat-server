@@ -10,13 +10,27 @@ bool GroupDAO::insertGroup(Group &tgroup, int userid)
     {
         return false;
     }
-    char buf[1024];
-    snprintf(buf, sizeof(buf),"insert into allgroup(ownerid,groupname,groupdesc) values(%d,'%s','%s');",userid,tgroup.getName().c_str(),tgroup.getDesc().c_str());
-    if(conn->update(buf))
+    std::string sql = "insert into allgroup(ownerid,groupname,groupdesc) values(?,?,?);";
+    try
     {
-        int groupid = conn->getLastId();
-        tgroup.setId(groupid);
+        auto stmt = conn->prepare(sql);
+        stmt->setInt(1,userid);
+        stmt->setString(2,tgroup.getName());
+        stmt->setString(3,tgroup.getDesc());
+        stmt->executeUpdate();
+        // 获取自动生成的ID
+        // 获取自增 ID
+        auto stmt2 = conn->prepare("SELECT LAST_INSERT_ID()");
+        std::unique_ptr<sql::ResultSet> res(stmt2->executeQuery());
+        if (res->next()) {
+            int groupId = res->getInt(1);
+            tgroup.setId(groupId);   // 回写到对象中
+        }
         return true;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
     }
     return false;
 }
@@ -28,9 +42,18 @@ bool GroupDAO::removeGroup(int groupid)
     {
         return false;
     }
-    char buf[1024];
-    snprintf(buf, sizeof(buf),"delet from allgroup where groupid=%d;",groupid);
-    return conn->update(buf);
+    try
+    {
+        std::string sql = "delete from allgroup where groupid=?;";
+        auto stmt = conn->prepare(sql);
+        return true;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        
+    }
+    return false;
 }
 
 bool GroupDAO::addGroup(int groupid, int userid, std::string role)
@@ -40,36 +63,53 @@ bool GroupDAO::addGroup(int groupid, int userid, std::string role)
     {
         return false;
     }
-    char buf[1024];
-    snprintf(buf, sizeof(buf),"insert into groupuser(groupid,userid,role) values(%d,%d,'%s');",groupid,userid,role.c_str());
-    return conn->update(buf);
+    try
+    {
+        std::string sql = "insert into groupuser(groupid,userid,role) values(?,?,?);";
+        auto stmt = conn->prepare(sql);
+        stmt->setInt(1,groupid);
+        stmt->setInt(2,userid);
+        stmt->setString(3,role);
+        stmt->execute();
+        return true;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        
+    }
+    return false;
 }
 
 std::vector<Group> GroupDAO::queryGroup(int userid)
 {
-    std::vector<Group> res;
+    std::vector<Group> resvec;
     auto conn = ConnectionPool::getInstance().getConnection();
     if (conn == nullptr)
     {
-        return res;
+        return resvec;
     }
     //create table groupuser(groupid int unsigned not null,
     //userid int unsigned not null,role enum('owner','admin','normal') default 'normal',
     //index idx_userid(userid),primary key(groupid,userid));
-    char buf[1024];
-    snprintf(buf, sizeof(buf),"select id,groupname,groupdesc from allgroup where ownerid=%d;",userid);
-    DbRes mres = conn->query(buf);
-    if(mres != nullptr)
+    try
     {
-        MYSQL_ROW row = nullptr;
-        while((row = mysql_fetch_row(mres.get())) != nullptr)
+        std::string sql = "select id,groupname,groupdesc from allgroup where ownerid=?;";
+        auto stmt = conn->prepare(sql);
+        stmt->setInt(1,userid);
+        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+        while(res->next())
         {
             Group tgroup;
-            tgroup.setId(atoi(row[0]));
-            tgroup.setName(row[1]);
-            tgroup.setDesc(row[2]);
-            res.push_back(std::move(tgroup));
+            tgroup.setId(res->getInt("id"));
+            tgroup.setName(res->getString("groupname"));
+            tgroup.setDesc(res->getString("groupdesc"));
+            resvec.push_back(std::move(tgroup));
         }
     }
-    return res;
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    return resvec;
 }

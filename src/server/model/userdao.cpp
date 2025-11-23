@@ -9,16 +9,25 @@ bool UserDAO::inserUser(User &user)
     {
         return false;
     }
-    char buf[1024];
-    snprintf(buf, sizeof(buf), "insert into user(username,password) values('%s','%s');",
-             const_cast<User &>(user).getUserName().c_str(),
-             const_cast<User &>(user).getPassWord().c_str());
-    std::cout << std::string(buf) << std::endl;
-    if(conn->update(buf))
+    try
     {
-        int id = conn->getLastId();
-        user.setId(id);
+        std::string sql = "insert into user(username,password) values(?,?);";
+        auto stmt = conn->prepare(sql);
+        stmt->setString(1, user.getUserName());
+        stmt->setString(2, user.getPassWord());
+        stmt->executeUpdate();
+        auto stmt2 = conn->prepare("SELECT LAST_INSERT_ID()");
+        std::unique_ptr<sql::ResultSet> res(stmt2->executeQuery());
+        if (res->next())
+        {
+            int userid = res->getInt(1);
+            user.setId(userid); // 回写到对象中
+        }
         return true;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
     }
     return false;
 }
@@ -30,21 +39,25 @@ User UserDAO::queryUser(int id)
     {
         return User();
     }
-    char buf[1024];
-    snprintf(buf,sizeof(buf),"select id,username,password from user where id=%d",id);
-    DbRes res = conn->query(buf);
-    if(res != nullptr)
+    try
     {
-        MYSQL_ROW row = mysql_fetch_row(res.get());
-        if(row != nullptr)
+        std::string sql = "select id,username,password from user where id=?";
+        auto stmt = conn->prepare(sql);
+        stmt->setInt(1, id);
+        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+        while (res->next())
         {
             User user;
-            user.setId(atoi(row[0]));
-            user.setUserName(row[1]);
-            user.setPassWord(row[2]);
+            user.setId(res->getInt("id"));
+            user.setUserName(res->getString("username"));
+            user.setPassWord(res->getString("password"));
             // 释放结果集后再返回
             return user;
         }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
     }
     return User();
 }
@@ -56,10 +69,19 @@ bool UserDAO::updateUser(const User &user)
     {
         return false;
     }
-    char buf[1024];
-    snprintf(buf, sizeof(buf), "update user set username='%s' password='%s' where userid =%d;",
-             const_cast<User &>(user).getUserName().c_str(),
-             const_cast<User &>(user).getPassWord().c_str(),
-             const_cast<User &>(user).getId());
-    return conn->update(buf);
+    try
+    {
+        std::string sql = "update user set username=? password=? where userid =?;";
+        auto stmt = conn->prepare(sql);
+        stmt->setString(1, user.getUserName());
+        stmt->setString(2, user.getPassWord());
+        stmt->setInt(3, user.getId());
+        stmt->executeUpdate();
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    return false;
 }

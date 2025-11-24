@@ -13,7 +13,7 @@ showUI::showUI()
         {"addfriend", "添加好友，格式:addfriend:friendid"},
         {"chat", "一对一聊天，格式:chat:friendid:message"},
         {"creategroup", "创建群组，格式:creategroup:groupname:groupdesc"},
-        {"addgroup", "加入群组，格式:addgroup:groupid"},
+        {"joingroup", "加入群组，格式:joingroup:groupid"},
         {"groupchat", "群聊，格式:groupchat:groupid:message"},
         {"flush", "刷新界面,格式:flush"},
         {"quit", "关闭软件,格式:quit"},
@@ -84,7 +84,7 @@ bool showUI::showRegister()
         {"password", password}
     };
     json sendjs = m_service.buildRequest(js,MsgType::MSG_REGISTER);
-    std::string res = js.dump();
+    std::string res = sendjs.dump();
     return m_service.sendregister(res);
 }
 
@@ -102,13 +102,13 @@ void showUI::showUserMain()
     {
         std::cout << "用户编号：" << frienduser.second.getId() << " 用户名：" << frienduser.second.getUserName() << std::endl;
     }
-    const std::vector<Group> &groupVec = m_service.getGroup();
+    const std::unordered_map<int,Group> &groupVec = m_service.getGroup();
     std::cout << "群组：" << std::endl;
     for (auto &groupusers : groupVec)
     {
-        std::cout << "群号:" << groupusers.getId() << "群名："
-                  << groupusers.getName() << "描述:"
-                  << groupusers.getDesc() << std::endl;
+        std::cout << "群号:" << groupusers.second.getId() << "群名："
+                  << groupusers.second.getName() << "描述:"
+                  << groupusers.second.getDesc() << std::endl;
     }
 }
 

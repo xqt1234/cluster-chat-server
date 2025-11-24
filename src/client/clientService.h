@@ -21,14 +21,22 @@ public:
         ErrType errType;
         std::string message;
     };
+    using MsgHandler = std::function<void(json&)>;
+private:
+    void handle_MSG_ADD_FRIEND_ACK(json& datajs);
+    void handle_MSG_PRIVATE_CHAT_ACK(json& datajs);
+    void handle_MSG_GROUP_CHAT_ACK(json& datajs);
+    void handle_MSG_CREATE_GROUP_ACK(json& datajs);
+    void handle_MSG_JOIN_GROUP_ACK(json& datajs);
 private:
     User m_currentUser;
     std::unordered_map<int,User> m_friendVec;
-    std::vector<Group> m_groupVec;
+    std::unordered_map<int,Group> m_groupMap;
     std::vector<std::string> m_offline_friend;
     std::vector<std::string> m_offline_group;
     ClientNet m_clientNet;
     std::unordered_map<std::string, Func> m_commandHandleMap;
+    std::unordered_map<int,MsgHandler> m_ackHandlerMap;
 public:
     ClientService(/* args */);
     ~ClientService() = default;
@@ -56,7 +64,7 @@ public:
     bool setState(json& js);
     const User &getCurrentUser() const { return m_currentUser; }
     const std::unordered_map<int,User> &getFriend() const { return m_friendVec; }
-    const std::vector<Group> &getGroup() const { return m_groupVec; }
+    const std::unordered_map<int,Group> &getGroup() const { return m_groupMap; }
     const std::vector<std::string> &getOfflineFriend() const { return m_offline_friend; }
     const std::vector<std::string> &getOfflineGroup() const { return m_offline_group; }
     std::vector<std::string> &getOfflineFriend() { return m_offline_friend; }
@@ -67,15 +75,16 @@ private:
     // ======= 管理服务  =======
     bool addFriend(std::string src);
     bool createGroup(std::string src);
-    bool addGroup(std::string src);
+    bool joinGroup(std::string src);
     
     // ==== 聊天相关 ======
     bool chatOne(std::string src);
+    bool chatGroup(std::string src);
 
 private:
-    
-    
     inline long long getCurrentTimeMillis();
     static const size_t MAX_JSON_LENGTH = 1024 * 1024; // 1MB
     std::string m_token;
+
+
 };

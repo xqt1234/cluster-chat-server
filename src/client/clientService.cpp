@@ -6,13 +6,29 @@
 #include "group.h"
 #include <chrono>
 #include <fstream>
+
 ClientService::ClientService()
 {
+    using namespace std::placeholders;
     m_clientNet.connect();
-    m_commandHandleMap.insert({"chat", std::bind(&ClientService::chatOne, this, std::placeholders::_1)});
-    m_commandHandleMap.insert({"addfriend", std::bind(&ClientService::addFriend, this, std::placeholders::_1)});
-    m_commandHandleMap.insert({"creategroup", std::bind(&ClientService::createGroup, this, std::placeholders::_1)});
-    m_commandHandleMap.insert({"addgroup", std::bind(&ClientService::addGroup, this, std::placeholders::_1)});
+    // 注册请求处理函数
+    m_commandHandleMap.insert({"chat", std::bind(&ClientService::chatOne, this, _1)});
+    m_commandHandleMap.insert({"addfriend", std::bind(&ClientService::addFriend, this, _1)});
+    m_commandHandleMap.insert({"creategroup", std::bind(&ClientService::createGroup, this, _1)});
+    m_commandHandleMap.insert({"joingroup", std::bind(&ClientService::joinGroup, this, _1)});
+    m_commandHandleMap.insert({"groupchat", std::bind(&ClientService::chatGroup, this, _1)});
+
+    // 注册响应处理函数
+    m_ackHandlerMap.insert({static_cast<int>(MsgType::MSG_ADD_FRIEND_ACK),
+                            std::bind(&ClientService::handle_MSG_ADD_FRIEND_ACK, this, _1)});
+    m_ackHandlerMap.insert({static_cast<int>(MsgType::MSG_PRIVATE_CHAT_ACK),
+                            std::bind(&ClientService::handle_MSG_PRIVATE_CHAT_ACK, this, _1)});
+    m_ackHandlerMap.insert({static_cast<int>(MsgType::MSG_GROUP_CHAT_ACK),
+                            std::bind(&ClientService::handle_MSG_GROUP_CHAT_ACK, this, _1)});
+    m_ackHandlerMap.insert({static_cast<int>(MsgType::MSG_CREATE_GROUP_ACK),
+                            std::bind(&ClientService::handle_MSG_CREATE_GROUP_ACK, this, _1)});
+    m_ackHandlerMap.insert({static_cast<int>(MsgType::MSG_JOIN_GROUP_ACK),
+                            std::bind(&ClientService::handle_MSG_JOIN_GROUP_ACK, this, _1)});
 }
 bool ClientService::addFriend(std::string src)
 {
@@ -39,7 +55,7 @@ bool ClientService::createGroup(std::string src)
     return m_clientNet.send(sendjs.dump());
 }
 
-bool ClientService::addGroup(std::string src)
+bool ClientService::joinGroup(std::string src)
 {
     int groupid = atoi(src.c_str());
     json js{
@@ -63,6 +79,30 @@ bool ClientService::chatOne(std::string src)
         {"userid", m_currentUser.getId()},
         {"msg", msg}};
     json sendjs = buildRequest(js, MsgType::MSG_PRIVATE_CHAT);
+    return m_clientNet.send(sendjs.dump());
+}
+
+bool ClientService::chatGroup(std::string src)
+{
+    int index = src.find(":");
+    if (index == -1)
+    {
+        std::cout << "群组编号输入错误" << std::endl;
+        return false;
+    }
+    int groupid = atoi(src.substr(0,index).c_str());
+    auto it = m_groupMap.find(groupid);
+    if(it == m_groupMap.end())
+    {
+        std::cout << "你还不是该群组成员" << std::endl;
+        return false;
+    }
+    std::string msg = src.substr(index+1);
+    json js{
+        {"groupid",groupid},
+        {"msg",msg}
+    };
+    json sendjs = buildRequest(js, MsgType::MSG_GROUP_CHAT);
     return m_clientNet.send(sendjs.dump());
 }
 
@@ -144,58 +184,10 @@ void ClientService::getRecv()
     }
     int msgtype = resjs["msgid"];
     json datajs = resjs["data"];
-    if (msgtype == static_cast<int>(MsgType::MSG_ADD_FRIEND_ACK))
+    auto it = m_ackHandlerMap.find(msgtype);
+    if (it != m_ackHandlerMap.end())
     {
-        int frinedid = datajs.value("friendid", -1);
-        std::string friendname = datajs.value("friendname", std::string());
-        if (frinedid != -1)
-        {
-            User user;
-            user.setId(frinedid);
-            user.setUserName(friendname);
-            m_friendVec.emplace(user.getId(), std::move(user));
-        }
-        std::cout << datajs.value("msg", std::string()) << std::endl;
-        std::cout << "添加好友成功" << std::endl;
-    }
-    else if (msgtype == static_cast<int>(MsgType::MSG_PRIVATE_CHAT_ACK))
-    {
-        std::string off_friend = datajs.value("msg", std::string());
-        int fromid = datajs.value("fromid", -1);
-        auto it = m_friendVec.find(fromid);
-        if (it == m_friendVec.end())
-        {
-            std::cout << "消息来源id获取失败" << std::endl;
-            return;
-        }
-        std::string username = it->second.getUserName();
-        m_offline_friend.push_back(username + "说:" + off_friend);
-    }
-    else if (msgtype == static_cast<int>(MsgType::MSG_GROUP_CHAT_ACK))
-    {
-        std::string off_group = datajs.value("msg", std::string());
-        m_offline_group.push_back(off_group);
-    }
-    else if (msgtype == static_cast<int>(MsgType::MSG_CREATE_GROUP_ACK))
-    {
-        if (datajs.contains("groups") && datajs["groups"].is_array())
-        {
-            for (auto &gitem : datajs["groups"])
-            {
-                if (!gitem.is_object())
-                {
-                    continue;
-                }
-                Group tgroup;
-                int id = gitem.value("groupid", -1);
-                tgroup.setId(id);
-                tgroup.setDesc(gitem.value("groupdesc", std::string()));
-                tgroup.setName(gitem.value("groupname", std::string()));
-                m_groupVec.push_back(tgroup);
-            }
-        }
-        std::string off_group = datajs.value("msg", std::string());
-        m_offline_friend.push_back(off_group);
+        it->second(datajs);
     }
 }
 
@@ -256,7 +248,7 @@ bool ClientService::setState(json &js)
             tgroup.setId(id);
             tgroup.setDesc(g.value("groupdesc", std::string()));
             tgroup.setName(g.value("groupname", std::string()));
-            m_groupVec.push_back(tgroup);
+            m_groupMap.insert({tgroup.getId(),tgroup});
         }
     }
     if (js.contains("offlinemsg") && js["offlinemsg"].is_array())
@@ -281,10 +273,10 @@ bool ClientService::setState(json &js)
             }
         }
     }
-    if(js.contains("token"))
+    if (js.contains("token"))
     {
         m_token = js["token"];
-        Token::getInstance().saveToken(m_token,m_currentUser.getId());
+        Token::getInstance().saveToken(m_token, m_currentUser.getId());
     }
     return true;
 }
@@ -331,9 +323,63 @@ ClientService::ValidResult ClientService::checkValid(std::string &src, json &dat
         errmsg = "消息类型错误";
         return {false, ErrType::PARAM_TYPE_ERROR, errmsg};
     }
-    if(data["msgid"] == MsgType::MSG_ERROR)
+    if (data["msgid"] == MsgType::MSG_ERROR)
     {
         return {false, ErrType::PARAM_TYPE_ERROR, errmsg};
     }
     return {true, ErrType::SUCCESS, ""};
+}
+
+void ClientService::handle_MSG_ADD_FRIEND_ACK(json &datajs)
+{
+    int frinedid = datajs.value("friendid", -1);
+    std::string friendname = datajs.value("friendname", std::string());
+    if (frinedid != -1)
+    {
+        User user;
+        user.setId(frinedid);
+        user.setUserName(friendname);
+        m_friendVec.emplace(user.getId(), std::move(user));
+    }
+    std::cout << datajs.value("msg", std::string()) << std::endl;
+    std::cout << "添加好友成功" << std::endl;
+}
+void ClientService::handle_MSG_PRIVATE_CHAT_ACK(json &datajs)
+{
+    std::string off_friend = datajs.value("msg", std::string());
+    int fromid = datajs.value("fromid", -1);
+    auto it = m_friendVec.find(fromid);
+    if (it == m_friendVec.end())
+    {
+        std::cout << "消息来源id获取失败" << std::endl;
+        return;
+    }
+    std::string username = it->second.getUserName();
+    m_offline_friend.push_back(username + "说:" + off_friend);
+}
+void ClientService::handle_MSG_GROUP_CHAT_ACK(json &datajs)
+{
+    std::string off_group = datajs.value("msg", std::string());
+    std::string res = "群" + std::to_string(datajs.value("groupid",-1))+"消息:" + off_group;
+    m_offline_group.push_back(res);
+}
+void ClientService::handle_MSG_CREATE_GROUP_ACK(json &datajs)
+{
+    int groupid = datajs.value("groupid",-1);
+    std::string groupname = datajs.value("groupname","");
+    std::string groupdesc = datajs.value("groupdesc","");
+    Group tgroup(groupname,groupdesc,groupid);
+    m_groupMap.insert({groupid,tgroup});
+    std::string off_group = datajs.value("msg", std::string());
+    m_offline_friend.push_back(off_group);
+}
+void ClientService::handle_MSG_JOIN_GROUP_ACK(json &datajs)
+{
+    int groupid = datajs.value("groupid",-1);
+    std::string groupname = datajs.value("groupname","");
+    std::string groupdesc = datajs.value("groupdesc","");
+    Group tgroup(groupname,groupdesc,groupid);
+    m_groupMap.insert({groupid,tgroup});
+    std::string off_group = datajs.value("msg", std::string());
+    m_offline_friend.push_back(off_group);
 }

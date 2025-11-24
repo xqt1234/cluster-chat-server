@@ -2,7 +2,7 @@
 #include "connectionPool.h"
 #include "user.h"
 #include <iostream>
-
+#include "Logger.h"
 std::vector<User> FriendDAO::query(int id)
 {
     std::vector<User> vec;
@@ -18,7 +18,7 @@ std::vector<User> FriendDAO::query(int id)
         if (stmt)
         {
             stmt->setInt(1, id);
-            std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+            auto res = stmt->executeQuery();
             while (res->next())
             {
                 User user;
@@ -64,6 +64,7 @@ bool FriendDAO::addFriend(int userid, int friendid)
     }
     catch (const std::exception &e)
     {
+        LOG_ERROR("{}",e.what());
         conn->rollback();
     }
     return false;
@@ -82,7 +83,7 @@ bool FriendDAO::isFriend(int userid, int friendid)
         auto stmt = conn->prepare(sql);
         stmt->setInt(1, userid);
         stmt->setInt(2, friendid);
-        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+        auto res = stmt->executeQuery();
         if (res->next())
         {
             return true;

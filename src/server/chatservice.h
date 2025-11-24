@@ -45,9 +45,10 @@ public:
     void LoginByToken(const TcpConnectionPtr &conn, json &js,int userid);
     void Register(const TcpConnectionPtr &conn, json &js,int userid);
     void ChatOne(const TcpConnectionPtr &conn, json &js,int userid);
+    void ChatGroup(const TcpConnectionPtr &conn, json &js,int userid);
     void addFriend(const TcpConnectionPtr &conn, json &js,int userid);
     void createGroup(const TcpConnectionPtr &conn, json &js,int userid);
-    void addGroup(const TcpConnectionPtr &conn, json &js,int userid);
+    void joinGroup(const TcpConnectionPtr &conn, json &js,int userid);
     MsgHandle getHandler(int msgid);
     ValidResult checkValid(std::string& str,json& data);
     inline long long getCurrentTimeMillis();
@@ -58,6 +59,5 @@ private:
     void queryGroup(int userid, json &js);
     json buildResponse(json& obj,MsgType type);
     void buildLoginInfo(const TcpConnectionPtr &conn, json &js,User& user,bool loginbytoken);
-    void sendMsgToAllDevice(json &sendjson,int toid);
     
 };

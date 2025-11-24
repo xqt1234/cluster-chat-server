@@ -27,17 +27,17 @@ public:
     
     std::shared_ptr<Connection> getConnection();
     static ConnectionPool& getInstance();
+
+    // ====== 检测用，后面可删除 ========
     void createDefaultTables(std::string filename);
+    //bool checkDefaultTables(std::vector<std::string> tables);
 private:
     ConnectionPool(/* args */);
     ~ConnectionPool();
     ConnectionPool(const ConnectionPool& src) = delete;
     ConnectionPool& operator=(const ConnectionPool& src) = delete;
-    bool loadConfig();
-    void Trim(std::string &str);
     void init();
     void scanFunc();
-    
-
+    void loadConfig();
 };
 

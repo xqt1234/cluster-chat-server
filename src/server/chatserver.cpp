@@ -53,7 +53,8 @@ void ChatServer::onMessage(const TcpConnectionPtr &conn, Buffer *buf)
     int msgid = js["msgid"];
     std::string token = js["token"];
     int userid = m_service.checkToken(token);
-    if (userid != -1 || (msgid == static_cast<int>(MsgType::MSG_LOGIN)))
+    if (userid != -1 || (msgid == static_cast<int>(MsgType::MSG_LOGIN))
+    || (msgid == static_cast<int>(MsgType::MSG_REGISTER)))
     {
         std::cout << "解析出来用户id是" << userid << std::endl;
         MsgHandle handle = m_service.getHandler(msgid);

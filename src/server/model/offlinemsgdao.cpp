@@ -13,7 +13,7 @@ std::vector<std::string> OffineMessageDAO::query(int userid)
         std::string sql = "select id,message from offlinemessage where userid=? order by id;";
         auto stmt = conn->prepare(sql);
         stmt->setInt(1, userid);
-        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+        auto res = stmt->executeQuery();
         while (res->next())
         {
             vec.push_back(res->getString("message"));

@@ -12,8 +12,9 @@ ChatService::ChatService()
     m_handlemap.insert({static_cast<int>(MsgType::MSG_PRIVATE_CHAT), std::bind(&ChatService::ChatOne, this, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_ADD_FRIEND), std::bind(&ChatService::addFriend, this, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_CREATE_GROUP), std::bind(&ChatService::createGroup, this, _1, _2, _3)});
-    m_handlemap.insert({static_cast<int>(MsgType::MSG_JOIN_GROUP), std::bind(&ChatService::addGroup, this, _1, _2, _3)});
+    m_handlemap.insert({static_cast<int>(MsgType::MSG_JOIN_GROUP), std::bind(&ChatService::joinGroup, this, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN_BY_TOKEN), std::bind(&ChatService::LoginByToken, this, _1, _2, _3)});
+    m_handlemap.insert({static_cast<int>(MsgType::MSG_GROUP_CHAT), std::bind(&ChatService::ChatGroup, this, _1, _2, _3)});
     m_redis.connect();
     m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
 }
@@ -56,7 +57,7 @@ void ChatService::Register(const TcpConnectionPtr &conn, json &js, int userid)
     User user;
     user.setUserName(js.value("username", std::string()));
     user.setPassWord(js.value("password", std::string()));
-    bool res = m_userdao.inserUser(user);
+    bool res = m_userdao.insertUser(user);
     if (res)
     {
         std::string devicename = js.value("devicename", "unknown");
@@ -114,10 +115,13 @@ void ChatService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
     }
 }
 
+void ChatService::ChatGroup(const TcpConnectionPtr &conn, json &js, int userid)
+{
+}
+
 void ChatService::addFriend(const TcpConnectionPtr &conn, json &js, int userid)
 {
     int friendid = js.value("friendid", -1);
-    std::string username = js.value("username", "");
     if (userid == -1 || friendid == -1)
     {
         json jsres = buildErrorResponse({true, ErrType::INVALID_PARAMS, "用户参数错误"});
@@ -153,10 +157,11 @@ void ChatService::addFriend(const TcpConnectionPtr &conn, json &js, int userid)
     auto it = m_clientsMap.find(friendid);
     if (it != m_clientsMap.end())
     {
+        User user = m_userdao.queryUser(userid);
         json friendjs{
             {"friendid", userid},
-            {"friendname", username},
-            {"msg", std::string("被添加好友成功，对方是") + username}};
+            {"friendname", user.getUserName()},
+            {"msg", std::string("被添加好友成功，对方是") + user.getUserName()}};
         json sendf = buildResponse(friendjs, MsgType::MSG_ADD_FRIEND_ACK);
         it->second->send(sendf.dump());
     }
@@ -173,7 +178,7 @@ void ChatService::createGroup(const TcpConnectionPtr &conn, json &js, int userid
         return;
     }
     Group group(groupname, groupdesc);
-    bool res = m_groupdao.insertGroup(group, userid);
+    bool res = m_groupdao.createGroup(group, userid);
     if (!res)
     {
         json jsres = buildErrorResponse({true, ErrType::DB_ERROR, "创建群组失败"});
@@ -181,14 +186,16 @@ void ChatService::createGroup(const TcpConnectionPtr &conn, json &js, int userid
         return;
     }
     json jsres{
-        {"msg", "创建群组成功"}};
-    // 返回全部群组，客户端直接刷新
-    queryGroup(userid, jsres);
+        {"msg", "创建群组成功"},
+        {"groupid",group.getId()},
+        {"groupname",group.getName()},
+        {"groupdesc",group.getDesc()}
+    };
     json sendf = buildResponse(jsres, MsgType::MSG_CREATE_GROUP_ACK);
     conn->send(sendf.dump());
 }
 
-void ChatService::addGroup(const TcpConnectionPtr &conn, json &js, int userid)
+void ChatService::joinGroup(const TcpConnectionPtr &conn, json &js, int userid)
 {
     int groupid = js.value("groupid", -1);
     if (groupid == -1)
@@ -205,10 +212,13 @@ void ChatService::addGroup(const TcpConnectionPtr &conn, json &js, int userid)
         conn->send(jsres.dump());
         return;
     }
+    Group group = m_groupdao.queryGroupByGroupId(groupid);
     json jsres{
-        {"msg", "加入群组成功"}};
-
-    queryGroup(userid, jsres);
+        {"msg", "加入群组成功"},
+        {"groupid",group.getId()},
+        {"groupname",group.getName()},
+        {"groupdesc",group.getDesc()}
+    };
     json sendf = buildResponse(jsres, MsgType::MSG_JOIN_GROUP_ACK);
     conn->send(sendf.dump());
 }
@@ -231,7 +241,7 @@ MsgHandle ChatService::getHandler(int msgid)
 
 void ChatService::queryGroup(int userid, json &js)
 {
-    std::vector<Group> groups = m_groupdao.queryGroup(userid);
+    std::vector<Group> groups = m_groupdao.queryGroupsByUserId(userid);
     if (!groups.empty())
     {
         std::vector<json> groupstr;
@@ -249,12 +259,14 @@ void ChatService::queryGroup(int userid, json &js)
 
 json ChatService::buildResponse(json &obj, MsgType type)
 {
+    
     json response = {
         {"msgid", static_cast<int>(type)},
         {"code", static_cast<int>(ErrType::SUCCESS)},
         {"timestamp", getCurrentTimeMillis()},
         {"message", "OK"},
         {"data", std::move(obj)}};
+    std::cout << response.dump() << std::endl;
     return response;
 }
 
@@ -290,7 +302,7 @@ void ChatService::buildLoginInfo(const TcpConnectionPtr &conn, json &js, User& u
         RelationCache::getInstance().initFriends(user.getId(), friendvec);
         resjs["friends"] = friendsobj;
     }
-    std::vector<Group> groups = m_groupdao.queryGroup(user.getId());
+    std::vector<Group> groups = m_groupdao.queryGroupsByUserId(user.getId());
     if (!groups.empty())
     {
         std::vector<json> groupstr;
@@ -362,7 +374,8 @@ ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
     {
         return {false, ErrType::INVALID_REQUEST, "json解析失败"};
     }
-    if (data.value("msgid", -1) == -1)
+    
+    if (data.is_null() || !data.is_object() || data.value("msgid", -1) == -1)
     {
         return {false, ErrType::PARAM_TYPE_ERROR, "消息类型错误"};
     }
@@ -370,7 +383,9 @@ ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
     {
         return {true, ErrType::SUCCESS, "登录，通过验证，不检验载荷"};
     }
-    if (data["msgid"] != MsgType::MSG_LOGIN && data.value("token", "") == "")
+    if (data["msgid"] != MsgType::MSG_LOGIN &&
+        data["msgid"] != MsgType::MSG_REGISTER &&
+        data.value("token", "") == "")
     {
         return {false, ErrType::TOKEN_EXPIRED, "没有token消息"};
     }

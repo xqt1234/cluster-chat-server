@@ -11,6 +11,7 @@
 #include "offlinemsgdao.h"
 #include "user.h"
 #include "Logger.h"
+#include "DbChecker.h"
 EventLoop *gloop = nullptr;
 void resethandler(int sigNum)
 {
@@ -20,7 +21,18 @@ void resethandler(int sigNum)
 }
 int main()
 {
-    // ConnectionPool::getInstance().createDefaultTables("mysql.sql");
+    std::vector<std::string> sqlvec;
+    sqlvec.push_back("user");
+    sqlvec.push_back("friend");
+    sqlvec.push_back("allgroup");
+    sqlvec.push_back("groupuser");
+    sqlvec.push_back("offlinemsg");
+    DbChecker checker;
+    bool res = checker.checkAll(sqlvec);
+    if(!res)
+    {
+        std::cout << "数据库出错，终止程序" << std::endl;
+    }
     // return 0;
     // User user;
     // user.setPassWord("xxxx");

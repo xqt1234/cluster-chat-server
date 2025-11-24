@@ -2,7 +2,8 @@
 #include "user.h"
 #include "connectionPool.h"
 #include <iostream>
-bool UserDAO::inserUser(User &user)
+#include "Logger.h"
+bool UserDAO::insertUser(User &user)
 {
     auto conn = ConnectionPool::getInstance().getConnection();
     if (conn == nullptr)
@@ -17,17 +18,17 @@ bool UserDAO::inserUser(User &user)
         stmt->setString(2, user.getPassWord());
         stmt->executeUpdate();
         auto stmt2 = conn->prepare("SELECT LAST_INSERT_ID()");
-        std::unique_ptr<sql::ResultSet> res(stmt2->executeQuery());
+        auto res = stmt2->executeQuery();
         if (res->next())
         {
             int userid = res->getInt(1);
             user.setId(userid); // 回写到对象中
+            return true;
         }
-        return true;
     }
     catch (const std::exception &e)
     {
-        std::cerr << e.what() << '\n';
+        LOG_ERROR("{}",e.what());
     }
     return false;
 }
@@ -44,7 +45,7 @@ User UserDAO::queryUser(int id)
         std::string sql = "select id,username,password from user where id=?";
         auto stmt = conn->prepare(sql);
         stmt->setInt(1, id);
-        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+        auto res = stmt->executeQuery();
         while (res->next())
         {
             User user;

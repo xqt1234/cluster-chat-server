@@ -87,7 +87,6 @@ bool DbChecker::createDb(std::string dbname)
 
         std::string sql = "create database " + dbname + ";";
         auto stmt = prepare(sql);
-        std::cout << dbname << std::endl;
         stmt->execute();
         return true;
     }

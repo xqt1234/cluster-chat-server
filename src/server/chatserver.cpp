@@ -2,6 +2,7 @@
 #include "json.hpp"
 #include "Logger.h"
 #include "chatservice.h"
+#include "relationCache.h"
 using json = nlohmann::json;
 ChatServer::ChatServer(EventLoop *loop, uint16_t port, std::string ipaddr)
     : m_loop(loop), m_server(new TcpServer(loop, port, ipaddr))
@@ -18,11 +19,11 @@ void ChatServer::newConnection(const TcpConnectionPtr &conn)
 {
     if (conn->isConnected())
     {
-        std::cout << "启用外面的回调" << std::endl;
+        // std::cout << "启用外面的回调" << std::endl;
     }
     else
     {
-        std::cout << "连接被关闭" << std::endl;
+        // std::cout << "连接被关闭" << std::endl;
         m_service.removeConnection(conn);
         conn->shutdown();
     }
@@ -30,6 +31,7 @@ void ChatServer::newConnection(const TcpConnectionPtr &conn)
 
 void ChatServer::start()
 {
+    RelationCache::getInstance().initAllGroupUsers();
     m_server->start();
 }
 
@@ -41,7 +43,7 @@ void ChatServer::setThreadNum(int num)
 void ChatServer::onMessage(const TcpConnectionPtr &conn, Buffer *buf)
 {
     std::string msg = buf->readAllAsString();
-    std::cout << msg << std::endl;
+    // std::cout << msg << std::endl;
     json js;
     ChatService::ValidResult res = m_service.checkValid(msg, js);
     if (!res.success)
@@ -56,7 +58,6 @@ void ChatServer::onMessage(const TcpConnectionPtr &conn, Buffer *buf)
     if (userid != -1 || (msgid == static_cast<int>(MsgType::MSG_LOGIN))
     || (msgid == static_cast<int>(MsgType::MSG_REGISTER)))
     {
-        std::cout << "解析出来用户id是" << userid << std::endl;
         MsgHandle handle = m_service.getHandler(msgid);
         handle(conn, js["data"], userid);
     }

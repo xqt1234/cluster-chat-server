@@ -8,9 +8,6 @@
 class RedisTool
 {
 private:
-    // redisContext *m_publishcontext{nullptr};
-    // redisContext *m_subscribecontext{nullptr};
-    
     std::function<void(std::string, std::string)> m_notifymessagehandler;
     std::unique_ptr<sw::redis::Redis> m_redispool;
     std::unique_ptr<sw::redis::Redis> m_pub_redis;

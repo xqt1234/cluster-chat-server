@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include "Logger.h"
+#include "config.h"
 using namespace std;
 using namespace sw::redis;
 RedisTool::RedisTool()
@@ -25,12 +26,14 @@ std::optional<std::string> RedisTool::get(const std::string &key)
 
 bool RedisTool::connect()
 {
+    Config& config = Config::getInstance();
+    config.loadConfig("redis.ini");
     try
     {
         // 配置连接选项
         ConnectionOptions connection_opts;
-        connection_opts.host = "127.0.0.1"; // Redis服务器地址
-        connection_opts.port = 6379;        // Redis服务器端口
+        connection_opts.host = config.getValue("redisip","127.0.0.1"); // Redis服务器地址
+        connection_opts.port = atoi(config.getValue("redisip","6379").c_str());        // Redis服务器端口
         //connection_opts.socket_timeout = std::chrono::seconds(5);
         // connection_opts.password = "your_password"; // 如果Redis服务器设置了密码，取消注释并填写
         m_pub_redis = std::make_unique<sw::redis::Redis>(connection_opts);

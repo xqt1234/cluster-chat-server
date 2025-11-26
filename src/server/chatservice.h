@@ -14,50 +14,31 @@
 #include "redisTool.h"
 #include "tokenManager.h"
 #include <unordered_set>
+#include "baseservice.h"
+#include "authService.h"
+#include "friendService.h"
+#include "groupService.h"
+#include "sessionService.h"
+#include "messageService.h"
 using json = nlohmann::json;
 using MsgHandle = std::function<void(const TcpConnectionPtr &conn, json &js,int userid)>;
-class ChatService
+class ChatService : public BaseService
 {
 public:
-    struct ValidResult
-    {
-        bool success;
-        ErrType errType;
-        std::string message;
-    };
 private:
-    UserDAO m_userdao;
-    FriendDAO m_frienddao;
-    GroupDAO m_groupdao;
-    OffineMessageDAO m_offlinemsgdao;
     std::unordered_map<int, MsgHandle> m_handlemap;
-    std::unordered_map<int, TcpConnectionPtr> m_clientsMap;
-    std::unordered_map<TcpConnectionPtr, int> m_clientsMapPtr;
-    std::mutex m_clientsmapMtx;
-    RedisTool m_redis;
-    std::unique_ptr<TokenManager> m_tokenManager;
-    const std::string m_online_users_key{"online_users"};
     static const size_t MAX_JSON_LENGTH = 1024 * 1024; // 1MB
 public:
     ChatService(/* args */);
     ~ChatService();
-    void Login(const TcpConnectionPtr &conn, json &js,int userid);
-    void LoginByToken(const TcpConnectionPtr &conn, json &js,int userid);
-    void Register(const TcpConnectionPtr &conn, json &js,int userid);
-    void ChatOne(const TcpConnectionPtr &conn, json &js,int userid);
-    void ChatGroup(const TcpConnectionPtr &conn, json &js,int userid);
-    void addFriend(const TcpConnectionPtr &conn, json &js,int userid);
-    void createGroup(const TcpConnectionPtr &conn, json &js,int userid);
-    void joinGroup(const TcpConnectionPtr &conn, json &js,int userid);
     MsgHandle getHandler(int msgid);
     ValidResult checkValid(std::string& str,json& data);
-    inline long long getCurrentTimeMillis();
-    json buildErrorResponse(ValidResult&& errmsg);
-    int checkToken(std::string& str);
+    void handMessage(const TcpConnectionPtr &conn,json& js);
     void removeConnection(const TcpConnectionPtr &conn);
 private:
-    void queryGroup(int userid, json &js);
-    json buildResponse(json& obj,MsgType type);
-    void buildLoginInfo(const TcpConnectionPtr &conn, json &js,User& user,bool loginbytoken);
-    
+    AuthService m_authservcie;
+    FriendService m_friendservice;
+    GroupService m_groupservice;
+    MessageService m_messageservice;
+    SessionService m_sessionservice;
 };

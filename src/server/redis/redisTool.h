@@ -21,9 +21,9 @@ public:
     sw::redis::Redis& getRedis() { return *m_redispool; }
     std::optional<std::string> get(const std::string& key);
     bool connect();
-    bool publish(int userid,const std::string& str);
-    bool subscribe(int userid);
-    bool unsubscribe(int userid);
+    bool publish(const std::string& key,const std::string& str);
+    bool subscribe(const std::string& channel);
+    bool unsubscribe(const std::string& channel);
     void observver_userid_message();
     void init_notify_handle(std::function<void(std::string, std::string)> fn);
     

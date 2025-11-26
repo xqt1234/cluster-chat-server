@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include "Logger.h"
+#include "config.h"
 using namespace std;
 using namespace sw::redis;
 RedisTool::RedisTool()
@@ -25,14 +26,16 @@ std::optional<std::string> RedisTool::get(const std::string &key)
 
 bool RedisTool::connect()
 {
+    Config& config = Config::getInstance();
+    config.loadConfig("redis.ini");
     try
     {
         // 配置连接选项
         ConnectionOptions connection_opts;
-        connection_opts.host = "127.0.0.1"; // Redis服务器地址
-        connection_opts.port = 6379;        // Redis服务器端口
+        connection_opts.host = config.getValue("redisip","127.0.0.1"); // Redis服务器地址
+        connection_opts.port = atoi(config.getValue("redisport","6379").c_str());        // Redis服务器端口
         //connection_opts.socket_timeout = std::chrono::seconds(5);
-        // connection_opts.password = "your_password"; // 如果Redis服务器设置了密码，取消注释并填写
+        connection_opts.password = config.getValue("redispassword","xqt123").c_str(); // 如果Redis服务器设置了密码，取消注释并填写
         m_pub_redis = std::make_unique<sw::redis::Redis>(connection_opts);
         // 配置连接池选项 [citation:9]
         ConnectionPoolOptions pool_opts;
@@ -52,8 +55,7 @@ bool RedisTool::connect()
     }
     catch (const std::exception &e)
     {
-        LOG_FATAL("redis创建失败");
-        std::cerr << e.what() << '\n';
+        LOG_FATAL("redis创建失败{}",e.what());
     }
     return false;
 }
@@ -78,11 +80,11 @@ void RedisTool::observver_userid_message()
     LOG_DEBUG("订阅线程退出");
 }
 
-bool RedisTool::publish(int userid, const std::string &str)
+bool RedisTool::publish(const std::string& key, const std::string &str)
 {
     try
     {
-        m_pub_redis->publish(std::to_string(userid), str);
+        m_pub_redis->publish(key, str);
         return true;
     }
     catch (const std::exception &e)
@@ -92,11 +94,11 @@ bool RedisTool::publish(int userid, const std::string &str)
     }
 }
 
-bool RedisTool::subscribe(int userid)
+bool RedisTool::subscribe(const std::string& channel)
 {
     try
     {
-        m_sub_redis->subscribe(std::to_string(userid));
+        m_sub_redis->subscribe(channel);
         return true;
     }
     catch (const std::exception &e)
@@ -106,11 +108,12 @@ bool RedisTool::subscribe(int userid)
     }
 }
 
-bool RedisTool::unsubscribe(int userid)
+
+bool RedisTool::unsubscribe(const std::string& channel)
 {
     try
     {
-        m_sub_redis->unsubscribe(to_string(userid));
+        m_sub_redis->unsubscribe(channel);
         return true;
     }
     catch (const std::exception &e)

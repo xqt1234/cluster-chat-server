@@ -40,6 +40,9 @@ void ChatService::Login(const TcpConnectionPtr &conn, json &js, int tmpid)
         conn->send(jsres.dump());
         return;
     }
+    // 在redis注册登录状态
+    m_redis.getRedis().sadd(m_online_users_key, std::to_string(userid));
+    m_redis.subscribe(userid);
     buildLoginInfo(conn, js, user, false);
 }
 
@@ -58,7 +61,7 @@ void ChatService::Register(const TcpConnectionPtr &conn, json &js, int userid)
     bool res = m_userdao.insertUser(user);
     if (res)
     {
-        std::string devicename = js.value("devicename", "unknown");
+        std::string devicename = js.value("device", "unknown");
         json resjs{{"userid", user.getId()},
                    {"username", user.getUserName()},
                    {"token", m_tokenManager->generateToken(user.getId(), devicename)}};
@@ -91,22 +94,31 @@ void ChatService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
     }
     json resjs{
         {"msg", js["msg"]},
-        {"msgid",static_cast<int>(MsgType::MSG_PRIVATE_CHAT_ACK)},
+        {"msgid", static_cast<int>(MsgType::MSG_PRIVATE_CHAT_ACK)},
         {"fromid", userid}};
     std::string offlinemsg = resjs.dump();
     json sendjson = buildResponse(resjs, MsgType::MSG_PRIVATE_CHAT_ACK);
-    TcpConnectionPtr targetConn;
+    // 先在redis查询是否在线,本地是否有连接
+    bool isonline = m_redis.getRedis().sismember(m_online_users_key, std::to_string(userid));
+    if (isonline)
     {
-        std::lock_guard<std::mutex> lock(m_clientsmapMtx);
-        auto it = m_clientsMap.find(toid);
-        if (it != m_clientsMap.end())
+        TcpConnectionPtr targetConn;
         {
-            targetConn = it->second;
+            std::lock_guard<std::mutex> lock(m_clientsmapMtx);
+            auto it = m_clientsMap.find(toid);
+            if (it != m_clientsMap.end())
+            {
+                targetConn = it->second;
+            }
         }
-    }
-    if (targetConn)
-    {
-        targetConn->send(sendjson.dump());
+        if (targetConn)
+        {
+            targetConn->send(sendjson.dump());
+        }
+        else
+        {
+            m_redis.publish(toid, offlinemsg);
+        }
     }
     else
     {
@@ -127,32 +139,39 @@ void ChatService::ChatGroup(const TcpConnectionPtr &conn, json &js, int userid)
     }
     json resjs{
         {"msg", js["msg"]},
-        {"msgid",static_cast<int>(MsgType::MSG_GROUP_CHAT_ACK)},
+        {"msgid", static_cast<int>(MsgType::MSG_GROUP_CHAT_ACK)},
         {"groupid", groupid},
-        {"userid",userid}
-    };
+        {"userid", userid}};
     std::string offlinemsg = resjs.dump();
     json sendjson = buildResponse(resjs, MsgType::MSG_GROUP_CHAT_ACK);
     std::unordered_set<int> userset = RelationCache::getInstance().getAllUserFromGroup(groupid);
     // 后期需要替换存储方式。小群的时候，采用写扩散方案
     for (int toid : userset)
     {
-        if(toid == userid)
+        if (toid == userid)
         {
             continue;
         }
-        TcpConnectionPtr targetConn;
+        bool isonline = m_redis.getRedis().sismember(m_online_users_key, std::to_string(userid));
+        if (isonline)
         {
-            std::lock_guard<std::mutex> lock(m_clientsmapMtx);
-            auto it = m_clientsMap.find(toid);
-            if (it != m_clientsMap.end())
+            TcpConnectionPtr targetConn;
             {
-                targetConn = it->second;
+                std::lock_guard<std::mutex> lock(m_clientsmapMtx);
+                auto it = m_clientsMap.find(toid);
+                if (it != m_clientsMap.end())
+                {
+                    targetConn = it->second;
+                }
             }
-        }
-        if (targetConn)
-        {
-            targetConn->send(sendjson.dump());
+            if (targetConn)
+            {
+                targetConn->send(sendjson.dump());
+            }
+            else
+            {
+                m_redis.publish(toid, offlinemsg);
+            }
         }
         else
         {
@@ -357,16 +376,16 @@ void ChatService::buildLoginInfo(const TcpConnectionPtr &conn, json &js, User &u
     std::vector<std::string> offlinemsgs = m_offlinemsgdao.query(userid);
     m_offlinemsgdao.remove(userid);
     json offline_array = json::array();
-    for(auto& str:offlinemsgs)
+    for (auto &str : offlinemsgs)
     {
         try
         {
             json tmpmsg = json::parse(str);
             offline_array.push_back(tmpmsg);
         }
-        catch(const std::exception& e)
+        catch (const std::exception &e)
         {
-            LOG_ERROR("{}",e.what());
+            LOG_ERROR("{}", e.what());
         }
     }
     resjs["offlinemsg"] = offline_array;
@@ -407,6 +426,9 @@ void ChatService::removeConnection(const TcpConnectionPtr &conn)
         {
             m_clientsMap.erase(userit);
         }
+        // 从redis中删除，就不在线了
+        m_redis.getRedis().srem(m_online_users_key, std::to_string(userid));
+        m_redis.unsubscribe(userid);
     }
 }
 

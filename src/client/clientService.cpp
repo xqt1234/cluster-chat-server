@@ -162,6 +162,7 @@ bool ClientService::handleService(std::string &str)
     if (it != m_commandHandleMap.end())
     {
         it->second(str);
+        return true;
     }
     return false;
 }
@@ -255,8 +256,6 @@ bool ClientService::setState(json &js)
     {
         for (auto &item : js["offlinemsg"])
         {
-            // 打印整个对象看看实际结构
-            std::cout << "消息对象: " << item.dump() << std::endl;
             if (!item.is_object())
             {
                 continue;

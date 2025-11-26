@@ -7,3 +7,4 @@ src/server/log/*
 /.vscode/settings.json
 /.vscode/
 /docs/jsonformat.json
+/bin/*

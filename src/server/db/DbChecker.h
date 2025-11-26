@@ -16,6 +16,7 @@ private:
     std::string m_username;
     std::string m_dbname;
     std::string m_password;
+
 public:
     DbChecker(/* args */);
     ~DbChecker() = default;
@@ -24,6 +25,7 @@ public:
     bool createDb(std::string dbname);
     bool checkAll(std::vector<std::string> &dbtables);
     void createDefaultTables(std::string filename);
+
 private:
     std::unique_ptr<sql::PreparedStatement> prepare(std::string sql);
     void loadConfig();

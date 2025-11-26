@@ -38,6 +38,7 @@ bool OffineMessageDAO::remove(int userid)
     {
         std::string sql = "delete from offlinemsg where userid = ?;";
         auto stmt = conn->prepare(sql);
+        stmt->setInt(1,userid);
         stmt->execute();
         return true;
     }

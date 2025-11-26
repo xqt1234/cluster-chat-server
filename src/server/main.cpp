@@ -12,6 +12,7 @@
 #include "user.h"
 #include "Logger.h"
 #include "DbChecker.h"
+#include "config.h"
 EventLoop *gloop = nullptr;
 void resethandler(int sigNum)
 {
@@ -49,7 +50,11 @@ int main()
     // return 0;
     Logger::getInstance().setLogLevel(LogLevel::INFO);
     gloop = new EventLoop();
-    ChatServer m_server(gloop, 9999, "192.168.65.4");
+    Config& conf = Config::getInstance();
+    conf.loadConfig("serverconf.ini");
+    std::string ipaddr = conf.getValue("serverip","127.0.0.1");
+    uint16_t port = atoi(conf.getValue("serverport","9998").c_str());
+    ChatServer m_server(gloop, port, ipaddr);
     m_server.start();
     gloop->loop();
     std::cout << std::this_thread::get_id() << std::endl;

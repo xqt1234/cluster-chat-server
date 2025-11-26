@@ -1,10 +1,10 @@
-#include "DbConfig.h"
+#include "config.h"
 #include <fstream>
 #include "Logger.h"
 #include <iostream>
-bool DbConfig::loadConfig()
+bool Config::loadConfig(std::string filename)
 {
-    std::ifstream ss("mysql.ini");
+    std::ifstream ss(filename);
     if (!ss.is_open())
     {
         LOG_FATAL("找不到数据库配置文件");
@@ -38,7 +38,7 @@ bool DbConfig::loadConfig()
     return true;
 }
 
-void DbConfig::Trim(std::string &str)
+void Config::Trim(std::string &str)
 {
     size_t start_pos = str.find_first_not_of(" ");
     if (start_pos != std::string::npos)
@@ -52,13 +52,13 @@ void DbConfig::Trim(std::string &str)
     }
 }
 
-DbConfig &DbConfig::getInstance()
+Config &Config::getInstance()
 {
-    static DbConfig config;
+    static Config config;
     return config;
 }
 
-std::string DbConfig::getValue(const std::string& key,const std::string& defalutval)
+std::string Config::getValue(const std::string& key,const std::string& defalutval)
 {
     auto it = m_configMap.find(key);
     if(it != m_configMap.end())
@@ -68,7 +68,7 @@ std::string DbConfig::getValue(const std::string& key,const std::string& defalut
     return defalutval;
 }
 
-DbConfig::DbConfig()
+Config::Config()
 {
-    loadConfig();
+    
 }

@@ -1,13 +1,12 @@
 #include "DbChecker.h"
 #include "Logger.h"
-#include "DbConfig.h"
+#include "config.h"
 DbChecker::DbChecker()
 {
     loadConfig();
 }
 bool DbChecker::connectAndCheckDb()
 {
-
     std::string connection_string = "tcp://" + m_hostaddr + ":" + std::to_string(m_port);
     sql::mysql::MySQL_Driver *driver = sql::mysql::get_mysql_driver_instance();
     m_conn.reset(driver->connect(connection_string, m_username, m_password));
@@ -130,7 +129,8 @@ std::unique_ptr<sql::PreparedStatement> DbChecker::prepare(std::string sql)
 
 void DbChecker::loadConfig()
 {
-    DbConfig &config = DbConfig::getInstance();
+    Config &config = Config::getInstance();
+    config.loadConfig("mysql.ini");
     m_hostaddr = config.getValue("ip", "127.0.0.1");
     m_port = atoi(config.getValue("port", "3306").c_str());
     m_username = config.getValue("username", "root");

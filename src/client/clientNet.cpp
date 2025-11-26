@@ -2,7 +2,7 @@
 #include <arpa/inet.h>
 #include "Logger.h"
 #include <sys/socket.h>
-
+#include "config.h"
 ClientNet::ClientNet()
 {
     init();
@@ -16,9 +16,11 @@ ClientNet::~ClientNet()
 
 void ClientNet::connect()
 {
+    Config &config = Config::getInstance();
+    config.loadConfig("clientconf.ini");
     struct sockaddr_in addr{0};
-    uint16_t port = 9999;
-    std::string ip = "192.168.65.4";
+    uint16_t port = atoi(config.getValue("chatserverport","9998").c_str());
+    std::string ip = config.getValue("chatserverip","192.168.65.4");
     addr.sin_port = htons(port);
     addr.sin_family = AF_INET;
     inet_pton(AF_INET,ip.c_str(),&addr.sin_addr.s_addr);

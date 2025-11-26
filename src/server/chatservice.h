@@ -36,7 +36,7 @@ private:
     std::mutex m_clientsmapMtx;
     RedisTool m_redis;
     std::unique_ptr<TokenManager> m_tokenManager;
-
+    const std::string m_online_users_key{"online_users"};
     static const size_t MAX_JSON_LENGTH = 1024 * 1024; // 1MB
 public:
     ChatService(/* args */);

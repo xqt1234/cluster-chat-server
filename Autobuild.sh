@@ -9,13 +9,17 @@ else
     rm -rf `pwd`/build/*
 fi
 
-if ls `pwd`/src/client/log/*.log >/dev/null 2>&1;then
-    rm  `pwd`/src/client/log/*.log
+if [ ! -d `pwd`/bin ];then
+    mkdir `pwd`/bin
+    cp `pwd`/src/server/*.ini `pwd`/bin/
+    cp `pwd`/src/server/*.sql `pwd`/bin/
+    cp `pwd`/src/client/*.ini `pwd`/bin/
 fi
 
-if ls `pwd`/src/server/log/*.log >/dev/null 2>&1;then
-    rm  `pwd`/src/server/log/*.log
+if ls `pwd`/bin/log/*.log >/dev/null 2>&1;then
+    rm  `pwd`/bin/log/*.log
 fi
+
 cd `pwd`/build && cmake .. && make 
 
 cd ..

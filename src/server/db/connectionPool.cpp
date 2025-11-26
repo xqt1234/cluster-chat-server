@@ -2,7 +2,7 @@
 #include <fstream>
 #include "Logger.h"
 #include <functional>
-#include "DbConfig.h"
+#include "config.h"
 ConnectionPool::ConnectionPool()
 {
     init();
@@ -144,7 +144,8 @@ void ConnectionPool::scanFunc()
 
 void ConnectionPool::loadConfig()
 {
-    DbConfig &config = DbConfig::getInstance();
+    Config &config = Config::getInstance();
+    config.loadConfig("mysql.ini");
     m_ip = config.getValue("ip", "127.0.0.1");
     m_port = atoi(config.getValue("port", "3306").c_str());
     m_username = config.getValue("username","root");

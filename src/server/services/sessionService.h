@@ -5,22 +5,24 @@ class SessionService : BaseService
 public:
     struct ConnectInfo
     {
-        bool m_isOnline;
-        bool m_isLocal;
-        TcpConnectionPtr m_conn;
+        int m_userid = -1;
+        bool m_isOnline = false;
+        bool m_isLocal = false;
+        TcpConnectionPtr m_conn = nullptr;
+        long long m_version = -1;
     };
+    
 private:
-    std::unordered_map<int, ConnInfo> m_clientsMap;
+    std::unordered_map<int, ConnectInfo> m_clientsMap;
     std::unordered_map<TcpConnectionPtr, int> m_clientsMapPtr;
+    std::mutex m_clientsmapMtx;
 public:
     SessionService(/* args */) = default;
     ~SessionService() = default;
-    void removeConnection(const TcpConnectionPtr &conn);
-    void removeConnection(int userid,const ConnInfo& info);
-    void addConnection(const TcpConnectionPtr &conn,int userid,long long version);
-    ConnInfo getUser(int userid);
-    TcpConnectionPtr getConnection(int userid);
+    void removeConnection(const ConnectInfo& info);
+    void addConnection(const ConnectInfo& info);
+    //ConnectInfo getUser(int userid);
     void kickuser(std::string str);
-    void checkAndKickLogin(const TcpConnectionPtr &conn, json &js, int userid);
+    void checkAndKickLogin(const ConnectInfo& info);
     ConnectInfo checkHasLogin(int userid);
 };

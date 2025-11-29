@@ -20,11 +20,7 @@ public:
         ErrType errType;
         std::string message;
     };
-    struct ConnInfo
-    {
-        TcpConnectionPtr m_conn;
-        long long m_version;
-    };
+    
 protected:
     // 后期考虑拆分到appcontext，然后注入到各服务中
     static UserDAO m_userdao;
@@ -33,9 +29,6 @@ protected:
     static OffineMessageDAO m_offlinemsgdao;
     static RedisTool m_redis;
     static std::string m_kickchannelname;
-    
-    static std::mutex m_clientsmapMtx;
-    std::unique_ptr<TokenManager> m_tokenManager;
 public:
     BaseService(/* args */) = default;
     virtual ~BaseService() = default;

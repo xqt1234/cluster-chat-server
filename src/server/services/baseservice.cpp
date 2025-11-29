@@ -7,10 +7,6 @@ GroupDAO BaseService::m_groupdao;
 OffineMessageDAO BaseService::m_offlinemsgdao;
 RedisTool BaseService::m_redis;
 std::string BaseService::m_kickchannelname;
-// std::unordered_map<int, BaseService::ConnInfo> BaseService::m_clientsMap;
-// std::unordered_map<TcpConnectionPtr, int> BaseService::m_clientsMapPtr;
-std::mutex BaseService::m_clientsmapMtx;
-//const std::string BaseService::m_online_users_key = "online_users";
 json BaseService::buildResponse(json &obj, MsgType type)
 {
     json response = {

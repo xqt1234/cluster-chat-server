@@ -1,5 +1,4 @@
 #pragma once
-#include <hiredis/hiredis.h>
 #include <thread>
 #include <functional>
 #include <sw/redis++/redis++.h>

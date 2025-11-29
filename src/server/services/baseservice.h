@@ -20,16 +20,20 @@ public:
         ErrType errType;
         std::string message;
     };
+    struct ConnInfo
+    {
+        TcpConnectionPtr m_conn;
+        long long m_version;
+    };
 protected:
+    // 后期考虑拆分到appcontext，然后注入到各服务中
     static UserDAO m_userdao;
     static FriendDAO m_frienddao;
     static GroupDAO m_groupdao;
     static OffineMessageDAO m_offlinemsgdao;
     static RedisTool m_redis;
     static std::string m_kickchannelname;
-    static const std::string m_online_users_key;
-    static std::unordered_map<int, TcpConnectionPtr> m_clientsMap;
-    static std::unordered_map<TcpConnectionPtr, int> m_clientsMapPtr;
+    
     static std::mutex m_clientsmapMtx;
     std::unique_ptr<TokenManager> m_tokenManager;
 public:

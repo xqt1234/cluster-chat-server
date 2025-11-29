@@ -1,5 +1,5 @@
 #include "friendService.h"
-
+#include "sessionService.h"
 void FriendService::addFriend(const TcpConnectionPtr &conn, json &js, int userid)
 {
     int friendid = js.value("friendid", -1);
@@ -35,15 +35,28 @@ void FriendService::addFriend(const TcpConnectionPtr &conn, json &js, int userid
         {"friendname", tfriend.getUserName()}};
     json sendjs = buildResponse(resjson, MsgType::MSG_ADD_FRIEND_ACK);
     conn->send(sendjs.dump());
-    auto it = m_clientsMap.find(friendid);
-    if (it != m_clientsMap.end())
+
+    User user = m_userdao.queryUser(userid);
+    json friendjs{
+        {"friendid", userid},
+        {"friendname", user.getUserName()},
+        {"msg", std::string("被添加好友成功，对方是") + user.getUserName()}};
+    json sendf = buildResponse(friendjs, MsgType::MSG_ADD_FRIEND_ACK);
+    if (m_getConn)
     {
-        User user = m_userdao.queryUser(userid);
-        json friendjs{
-            {"friendid", userid},
-            {"friendname", user.getUserName()},
-            {"msg", std::string("被添加好友成功，对方是") + user.getUserName()}};
-        json sendf = buildResponse(friendjs, MsgType::MSG_ADD_FRIEND_ACK);
-        it->second->send(sendf.dump());
+        SessionService::ConnectInfo info = m_getConn(friendid);
+        if (info.m_isLocal)
+        {
+            info.m_conn->send(sendf.dump());
+        }
+        else if (info.m_isOnline)
+        {
+            m_redis.publish(std::to_string(friendid), sendf.dump());
+        }
+        else
+        {
+            // 存储离线消息
+            m_offlinemsgdao.insert(friendid, sendf.dump());
+        }
     }
 }

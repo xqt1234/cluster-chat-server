@@ -25,32 +25,20 @@ void AuthService::login(const TcpConnectionPtr &conn, json &js, int tmpid)
         conn->send(jsres.dump());
         return;
     }
-    //检查是否已经登录，如果是，先在本地查，看是否是本服务器，本服务器，直接关闭连接。如果不是，向踢人频道发布消息。
-    auto result = m_redis.getRedis().get(m_online_users_key);
-    if(result.has_value())
+    if(m_CheckCallBack)
     {
-        auto it = m_clientsMap.find(userid);
-        if(it != m_clientsMap.end())
-        {
-            auto conn = it->second;
-            m_clientsMapPtr.erase(conn);
-            m_clientsMap.erase(it);
-            conn->connectDestroyed();
-        }else
-        {
-            m_redis.publish(m_kickchannelname,std::to_string(userid));
-        }
+        m_CheckCallBack(conn,js,userid);
     }
-    // 在redis注册登录状态
-    m_redis.getRedis().sadd(m_online_users_key, std::to_string(userid));
-    std::string userchannal = "user:" + std::to_string(userid);
-    m_redis.subscribe(userchannal);
     buildLoginInfo(conn, js, user, false);
 }
 
 void AuthService::LoginByToken(const TcpConnectionPtr &conn, json &js, int userid)
 {
     User user = m_userdao.queryUser(userid);
+    if(m_CheckCallBack)
+    {
+        m_CheckCallBack(conn,js,userid);
+    }
     buildLoginInfo(conn, js, user, true);
 }
 
@@ -89,6 +77,7 @@ int AuthService::verifyToken(std::string &str)
         return -1;
     }
 }
+
 
 void AuthService::buildLoginInfo(const TcpConnectionPtr &conn, json &js, User &user, bool loginbytoken)
 {
@@ -145,8 +134,7 @@ void AuthService::buildLoginInfo(const TcpConnectionPtr &conn, json &js, User &u
         }
     }
     resjs["offlinemsg"] = offline_array;
-    m_clientsMap.insert({user.getId(), conn});
-    m_clientsMapPtr.insert({conn, user.getId()});
+
     // 检查token，如果当前用户当前设备，有token记录，并且可用，返回。没有就生成。
     if (!loginbytoken)
     {
@@ -156,3 +144,5 @@ void AuthService::buildLoginInfo(const TcpConnectionPtr &conn, json &js, User &u
     json sendjson = buildResponse(resjs, MsgType::MSG_LOGIN_ACK);
     conn->send(sendjson.dump());
 }
+
+

@@ -1,8 +1,9 @@
 #include "messageService.h"
-
+#include "json.hpp"
+using json = nlohmann::json;
 MessageService::MessageService()
 {
-    m_redis.init_notify_handle(std::bind(&MessageService::handleRedisPublis,this,_1,_2));
+    m_redis.init_notify_handle(std::bind(&MessageService::handleRedisPublis, this, _1, _2));
 }
 
 void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
@@ -27,32 +28,23 @@ void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
         {"fromid", userid}};
     std::string offlinemsg = resjs.dump();
     json sendjson = buildResponse(resjs, MsgType::MSG_PRIVATE_CHAT_ACK);
-    // 先在redis查询是否在线,本地是否有连接
-    bool isonline = m_redis.getRedis().sismember(m_online_users_key, std::to_string(userid));
-    if (isonline)
+
+    if (m_getConn)
     {
-        TcpConnectionPtr targetConn;
+        SessionService::ConnectInfo info = m_getConn(toid);
+        if (info.m_isLocal)
         {
-            std::lock_guard<std::mutex> lock(m_clientsmapMtx);
-            auto it = m_clientsMap.find(toid);
-            if (it != m_clientsMap.end())
-            {
-                targetConn = it->second;
-            }
+            info.m_conn->send(sendjson.dump());
         }
-        if (targetConn)
-        {
-            targetConn->send(sendjson.dump());
-        }
-        else
+        else if (info.m_isOnline)
         {
             m_redis.publish(std::to_string(toid), offlinemsg);
         }
-    }
-    else
-    {
-        // 存储离线消息
-        m_offlinemsgdao.insert(toid, offlinemsg);
+        else
+        {
+            // 存储离线消息
+            m_offlinemsgdao.insert(toid, offlinemsg);
+        }
     }
 }
 
@@ -81,54 +73,46 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
         {
             continue;
         }
-        // 先检查本地，如果有，直接发送，如果没有，检查是否在redis中在线，在线就发送redis的频带，不在线就存储离线消息
-        bool isonline = m_redis.getRedis().sismember(m_online_users_key, std::to_string(userid));
-        if (isonline)
+
+        if (m_getConn)
         {
-            TcpConnectionPtr targetConn;
+            SessionService::ConnectInfo info = m_getConn(toid);
+            if (info.m_isLocal)
             {
-                std::lock_guard<std::mutex> lock(m_clientsmapMtx);
-                auto it = m_clientsMap.find(toid);
-                if (it != m_clientsMap.end())
-                {
-                    targetConn = it->second;
-                }
+                info.m_conn->send(sendjson.dump());
             }
-            if (targetConn)
-            {
-                targetConn->send(sendjson.dump());
-            }
-            else
+            else if (info.m_isOnline)
             {
                 m_redis.publish(std::to_string(toid), offlinemsg);
             }
-        }
-        else
-        {
-            // 存储离线消息
-            m_offlinemsgdao.insert(toid, offlinemsg);
+            else
+            {
+                // 存储离线消息
+                m_offlinemsgdao.insert(toid, offlinemsg);
+            }
         }
     }
 }
 
 void MessageService::handleRedisPublis(std::string key, std::string value)
 {
-    if(key == m_kickchannelname)
+    if (key == m_kickchannelname)
     {
-        int kickid = atoi(value.c_str());
-        auto it = m_clientsMap.find(kickid);
-        if(it != m_clientsMap.end())
-        {
-            auto conn = it->second;
-            m_clientsMapPtr.erase(conn);
-            m_clientsMap.erase(it);
-            conn->connectDestroyed();
-            // 移除订阅
-            std::string userchannal = "user:" + std::to_string(kickid);
-            m_redis.unsubscribe(userchannal);
-        }
-    }else if(key == "userid")
+        m_kickcallBack(value);
+        // int kickid = atoi(value.c_str());
+        // auto it = m_clientsMap.find(kickid);
+        // if(it != m_clientsMap.end())
+        // {
+        //     auto conn = it->second;
+        //     m_clientsMapPtr.erase(conn);
+        //     m_clientsMap.erase(it);
+        //     conn->connectDestroyed();
+        //     // 移除订阅
+        //     std::string userchannal = "user:" + std::to_string(kickid);
+        //     m_redis.unsubscribe(userchannal);
+        // }
+    }
+    else if (key == "userid")
     {
-
     }
 }

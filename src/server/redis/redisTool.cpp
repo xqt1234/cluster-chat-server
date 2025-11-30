@@ -30,6 +30,7 @@ bool RedisTool::connect()
     config.loadConfig("redis.ini");
     try
     {
+        LOG_DEBUG("正在连接redis.....");
         // 配置连接选项
         ConnectionOptions connection_opts;
         connection_opts.host = config.getValue("redisip","127.0.0.1"); // Redis服务器地址
@@ -51,6 +52,7 @@ bool RedisTool::connect()
         m_sub_redis->on_message(m_msgcallback);
         m_sub_redis->subscribe("redis:close");
         m_observeThread = std::thread(std::bind(&RedisTool::observver_userid_message, this));
+        LOG_DEBUG("redis连接成功!");
         return true;
     }
     catch (const std::exception &e)

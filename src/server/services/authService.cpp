@@ -7,6 +7,7 @@ AuthService::AuthService()
 {
     m_redis.connect();
     m_kickchannelname = "kick_" + Config::getInstance().getValue("servername","server01");
+    LOG_DEBUG("订阅频道：{}",m_kickchannelname);
     m_redis.subscribe(m_kickchannelname);
     m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
 }
@@ -31,6 +32,7 @@ void AuthService::login(const TcpConnectionPtr &conn, json &js, int tmpid)
     {
         m_CheckCallBack({userid,false,false,conn});
     }
+    m_redis.subscribe("to:" + std::to_string(userid));
     buildLoginInfo(conn, js, user, false);
 }
 
@@ -41,6 +43,7 @@ void AuthService::LoginByToken(const TcpConnectionPtr &conn, json &js, int useri
     {
         m_CheckCallBack({userid,false,false,conn});
     }
+    m_redis.subscribe("to:" + std::to_string(userid));
     buildLoginInfo(conn, js, user, true);
 }
 

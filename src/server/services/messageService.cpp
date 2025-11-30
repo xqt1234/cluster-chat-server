@@ -1,5 +1,7 @@
 #include "messageService.h"
 #include "json.hpp"
+#include <iostream>
+#include "Logger.h"
 using json = nlohmann::json;
 MessageService::MessageService()
 {
@@ -38,7 +40,8 @@ void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
         }
         else if (info.m_isOnline)
         {
-            m_redis.publish(std::to_string(toid), offlinemsg);
+            LOG_DEBUG("通过redis向conn发送消息 key:{} value:{}","to:" + std::to_string(toid), offlinemsg);
+            m_redis.publish("to:" + std::to_string(toid), offlinemsg);
         }
         else
         {
@@ -74,45 +77,39 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
             continue;
         }
 
-        if (m_getConn)
+        ConnectInfo info = m_getConn(toid);
+        if (info.m_isLocal)
         {
-            ConnectInfo info = m_getConn(toid);
-            if (info.m_isLocal)
-            {
-                info.m_conn->send(sendjson.dump());
-            }
-            else if (info.m_isOnline)
-            {
-                m_redis.publish(std::to_string(toid), offlinemsg);
-            }
-            else
-            {
-                // 存储离线消息
-                m_offlinemsgdao.insert(toid, offlinemsg);
-            }
+            info.m_conn->send(sendjson.dump());
+        }
+        else if (info.m_isOnline)
+        {
+            LOG_DEBUG("通过redis向conn发送消息 key:{} value:{}","to:" + std::to_string(toid), offlinemsg);
+            m_redis.publish("to:" + std::to_string(toid), offlinemsg);
+        }
+        else
+        {
+            // 存储离线消息
+            m_offlinemsgdao.insert(toid, offlinemsg);
         }
     }
 }
 
 void MessageService::handleRedisPublis(std::string key, std::string value)
 {
+    LOG_DEBUG("处理发布 key:{} value:{}", key, value);
     if (key == m_kickchannelname)
     {
         m_kickcallBack(value);
-        // int kickid = atoi(value.c_str());
-        // auto it = m_clientsMap.find(kickid);
-        // if(it != m_clientsMap.end())
-        // {
-        //     auto conn = it->second;
-        //     m_clientsMapPtr.erase(conn);
-        //     m_clientsMap.erase(it);
-        //     conn->connectDestroyed();
-        //     // 移除订阅
-        //     std::string userchannal = "user:" + std::to_string(kickid);
-        //     m_redis.unsubscribe(userchannal);
-        // }
     }
-    else if (key == "userid")
+    else if (key.starts_with("to:"))
     {
+        int index = key.find(":");
+        int userid = atoi(key.substr(index + 1).c_str());
+        ConnectInfo info = m_getConn(userid);
+        if (info.m_isLocal)
+        {
+            info.m_conn->send(value);
+        }
     }
 }

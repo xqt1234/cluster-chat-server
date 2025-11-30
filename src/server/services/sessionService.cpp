@@ -1,5 +1,5 @@
 #include "sessionService.h"
-
+#include "Logger.h"
 void SessionService::removeConnection(const ConnectInfo &info)
 {
     if (info.m_conn != nullptr)
@@ -58,6 +58,7 @@ void SessionService::checkAndKickLogin(const ConnectInfo &info)
         std::string restr = resultvalue.value();
         int index = restr.find(":");
         std::string kickchannalname = restr.substr(0, index);
+        LOG_DEBUG("发布踢人消息 key:{} value:{}",kickchannalname,std::to_string(userid) + restr.substr(index));
         m_redis.publish(kickchannalname, std::to_string(userid) + restr.substr(index));
     }
     std::string userchannal = "user:" + std::to_string(userid);

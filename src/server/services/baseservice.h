@@ -20,9 +20,15 @@ public:
         ErrType errType;
         std::string message;
     };
-    
+    struct ConnectInfo
+    {
+        int m_userid = -1;
+        bool m_isOnline = false;
+        bool m_isLocal = false;
+        TcpConnectionPtr m_conn = nullptr;
+        long long m_version = -1;
+    };
 protected:
-    // 后期考虑拆分到appcontext，然后注入到各服务中
     static UserDAO m_userdao;
     static FriendDAO m_frienddao;
     static GroupDAO m_groupdao;

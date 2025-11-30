@@ -44,7 +44,7 @@ void FriendService::addFriend(const TcpConnectionPtr &conn, json &js, int userid
     json sendf = buildResponse(friendjs, MsgType::MSG_ADD_FRIEND_ACK);
     if (m_getConn)
     {
-        SessionService::ConnectInfo info = m_getConn(friendid);
+        ConnectInfo info = m_getConn(friendid);
         if (info.m_isLocal)
         {
             info.m_conn->send(sendf.dump());

@@ -19,7 +19,7 @@ void SessionService::removeConnection(const ConnectInfo &info)
         auto it = m_clientsMap.find(info.m_userid);
         if (it != m_clientsMap.end())
         {
-            // 如果版本号是-1，则直接删除，
+            // 有版本号，且版本号相同才删除
             if (info.m_version != -1 && it->second.m_version != info.m_version)
             {
                 return;
@@ -71,7 +71,7 @@ void SessionService::kickuser(std::string str)
     removeConnection({userid,false, false, nullptr, versionid});
 }
 
-SessionService::ConnectInfo SessionService::checkHasLogin(int userid)
+BaseService::ConnectInfo SessionService::checkHasLogin(int userid)
 {
     {
         std::lock_guard<std::mutex> lock(m_clientsmapMtx);

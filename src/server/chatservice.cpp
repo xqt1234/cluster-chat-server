@@ -17,9 +17,10 @@ ChatService::ChatService()
     m_handlemap.insert({static_cast<int>(MsgType::MSG_JOIN_GROUP), std::bind(&GroupService::joinGroup, &m_groupservice, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN_BY_TOKEN), std::bind(&AuthService::LoginByToken, &m_authservcie, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_GROUP_CHAT), std::bind(&MessageService::ChatGroup, &m_messageservice, _1, _2, _3)});
-    
-    m_kickchannelname = "kick:" + Config::getInstance().getValue("servername","server01");
-    
+    m_authservcie.setCheckCallBack(std::bind(&SessionService::checkAndKickLogin,&m_sessionservice,_1));
+    m_friendservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin,&m_sessionservice,_1));
+    m_messageservice.setKickCallBack(std::bind(&SessionService::kickuser,&m_sessionservice,_1));
+    m_messageservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin,&m_sessionservice,_1));
 }
 
 ChatService::~ChatService()

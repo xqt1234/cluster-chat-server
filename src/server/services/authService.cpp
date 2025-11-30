@@ -2,9 +2,11 @@
 #include "chatservice.h"
 #include "userdao.h"
 #include "Logger.h"
+#include "config.h"
 AuthService::AuthService()
 {
     m_redis.connect();
+    m_kickchannelname = "kick:" + Config::getInstance().getValue("servername","server01");
     m_redis.subscribe(m_kickchannelname);
     m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
 }
@@ -27,7 +29,7 @@ void AuthService::login(const TcpConnectionPtr &conn, json &js, int tmpid)
     }
     if(m_CheckCallBack)
     {
-        m_CheckCallBack(conn,js,userid);
+        m_CheckCallBack({userid,false,false,conn});
     }
     buildLoginInfo(conn, js, user, false);
 }
@@ -37,7 +39,7 @@ void AuthService::LoginByToken(const TcpConnectionPtr &conn, json &js, int useri
     User user = m_userdao.queryUser(userid);
     if(m_CheckCallBack)
     {
-        m_CheckCallBack(conn,js,userid);
+        m_CheckCallBack({userid,false,false,conn});
     }
     buildLoginInfo(conn, js, user, true);
 }

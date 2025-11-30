@@ -31,7 +31,7 @@ void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
 
     if (m_getConn)
     {
-        SessionService::ConnectInfo info = m_getConn(toid);
+        ConnectInfo info = m_getConn(toid);
         if (info.m_isLocal)
         {
             info.m_conn->send(sendjson.dump());
@@ -76,7 +76,7 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
 
         if (m_getConn)
         {
-            SessionService::ConnectInfo info = m_getConn(toid);
+            ConnectInfo info = m_getConn(toid);
             if (info.m_isLocal)
             {
                 info.m_conn->send(sendjson.dump());

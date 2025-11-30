@@ -6,7 +6,7 @@
 AuthService::AuthService()
 {
     m_redis.connect();
-    m_kickchannelname = "kick:" + Config::getInstance().getValue("servername","server01");
+    m_kickchannelname = "kick_" + Config::getInstance().getValue("servername","server01");
     m_redis.subscribe(m_kickchannelname);
     m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
 }

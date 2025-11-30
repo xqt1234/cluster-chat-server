@@ -11,6 +11,7 @@ void SessionService::removeConnection(const ConnectInfo &info)
             int userid = it->second;
             m_clientsMapPtr.erase(info.m_conn);
             m_clientsMap.erase(userid);
+            info.m_conn->shutdown();
         }
     }
     else
@@ -27,6 +28,7 @@ void SessionService::removeConnection(const ConnectInfo &info)
             auto conn = it->second.m_conn;
             m_clientsMapPtr.erase(conn);
             m_clientsMap.erase(it);
+            conn->shutdown();
         }
     }
 }

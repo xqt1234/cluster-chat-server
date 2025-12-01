@@ -18,7 +18,7 @@ json BaseService::buildResponse(json &obj, MsgType type)
     return response;
 }
 
-inline long long BaseService::getCurrentTimeMillis()
+int64_t BaseService::getCurrentTimeMillis()
 {
     auto now = std::chrono::system_clock::now();
     return std::chrono::duration_cast<std::chrono::milliseconds>(

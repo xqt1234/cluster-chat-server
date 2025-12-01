@@ -1,17 +1,33 @@
 #include "sessionService.h"
 #include "Logger.h"
-void SessionService::removeConnection(const ConnectInfo &info)
+SessionService::SessionService()
 {
+    m_aliveThread = std::thread(std::bind(&SessionService::checkAlive, this));
+}
+SessionService::~SessionService()
+{
+    m_stop = true;
+    if (m_aliveThread.joinable())
+    {
+        m_aliveThread.join();
+    }
+}
+
+bool SessionService::removeConnection(const ConnectInfo &info, bool rstate)
+{
+    bool res = false;
+    int userid = -1;
     if (info.m_conn != nullptr)
     {
         std::lock_guard<std::mutex> lock(m_clientsmapMtx);
         auto it = m_clientsMapPtr.find(info.m_conn);
         if (it != m_clientsMapPtr.end())
         {
-            int userid = it->second;
+            userid = it->second;
             m_clientsMapPtr.erase(info.m_conn);
             m_clientsMap.erase(userid);
             info.m_conn->shutdown();
+            res = true;
         }
     }
     else
@@ -23,20 +39,31 @@ void SessionService::removeConnection(const ConnectInfo &info)
             // 有版本号，且版本号相同才删除
             if (info.m_version != -1 && it->second.m_version != info.m_version)
             {
-                return;
+                return false;
             }
+            userid = info.m_userid;
             auto conn = it->second.m_conn;
             m_clientsMapPtr.erase(conn);
             m_clientsMap.erase(it);
             conn->shutdown();
+            res = true;
         }
     }
+    if (res)
+    {
+        std::string keyname = "userid:" + std::to_string(userid);
+        std::string userchannal = "to:" + std::to_string(userid);
+        m_redis.unsubscribe(userchannal);
+        m_redis.getRedis().del(keyname);
+    }
+    return res;
 }
 
 void SessionService::addConnection(const ConnectInfo &info)
 {
     std::lock_guard<std::mutex> lock(m_clientsmapMtx);
     m_clientsMap[info.m_userid] = info;
+    m_clientsMap[info.m_userid].m_lastheartTime = getCurrentTimeMillis();
     m_clientsMapPtr[info.m_conn] = info.m_userid;
 }
 
@@ -58,12 +85,16 @@ void SessionService::checkAndKickLogin(const ConnectInfo &info)
         std::string restr = resultvalue.value();
         int index = restr.find(":");
         std::string kickchannalname = restr.substr(0, index);
-        LOG_DEBUG("发布踢人消息 key:{} value:{}",kickchannalname,std::to_string(userid) + restr.substr(index));
+        LOG_DEBUG("发布踢人消息 key:{} value:{}", kickchannalname, std::to_string(userid) + restr.substr(index));
         m_redis.publish(kickchannalname, std::to_string(userid) + restr.substr(index));
     }
-    std::string userchannal = "user:" + std::to_string(userid);
-    m_redis.subscribe(userchannal);
-    addConnection({userid,false,false,info.m_conn, newVersion});
+    else
+    {
+        LOG_DEBUG("不踢人，之前没有该用户");
+    }
+    // std::string userchannal = "user:" + std::to_string(userid);
+    // m_redis.subscribe(userchannal);
+    addConnection({userid, false, false, info.m_conn, newVersion});
 }
 
 void SessionService::kickuser(std::string str)
@@ -71,7 +102,14 @@ void SessionService::kickuser(std::string str)
     int index = str.find(":");
     int userid = atoi(str.substr(0, index).c_str());
     long long versionid = atol(str.substr(index + 1).c_str());
-    removeConnection({userid,false, false, nullptr, versionid});
+    bool res = removeConnection({userid, false, false, nullptr, versionid});
+    std::string userchannal = "to:" + std::to_string(userid);
+    LOG_DEBUG("踢掉{},取消订阅{}", userid, userchannal);
+    if (res)
+    {
+        // 踢人不用set在线状态，因为被别人已经设置了。
+        m_redis.unsubscribe(userchannal);
+    }
 }
 
 BaseService::ConnectInfo SessionService::checkHasLogin(int userid)
@@ -81,7 +119,7 @@ BaseService::ConnectInfo SessionService::checkHasLogin(int userid)
         auto it = m_clientsMap.find(userid);
         if (it != m_clientsMap.end())
         {
-            return {userid,true, true, it->second.m_conn};
+            return {userid, true, true, it->second.m_conn};
         }
     }
     sw::redis::Redis &redis = m_redis.getRedis();
@@ -89,7 +127,60 @@ BaseService::ConnectInfo SessionService::checkHasLogin(int userid)
     auto resultvalue = redis.get(keyname);
     if (resultvalue.has_value())
     {
-        return {userid,true, false, nullptr};
+        return {userid, true, false, nullptr};
     }
-    return {userid,false, false, nullptr};
+    return {userid, false, false, nullptr};
+}
+
+void SessionService::checkAlive()
+{
+    std::vector<int> kickVec;
+    while (!m_stop.load())
+    {
+        int64_t currentTime = getCurrentTimeMillis();
+
+        for (auto it = m_clientsMap.begin(); it != m_clientsMap.end(); ++it)
+        {
+            if (currentTime - it->second.m_lastheartTime > 20 * 1000)
+            {
+                kickVec.push_back(it->first);
+            }
+        }
+        if (!kickVec.empty())
+        {
+            removeAll(kickVec);
+            for (int &userid : kickVec)
+            {
+                std::string userchannal = "to:" + std::to_string(userid);
+                std::string keyname = "userid:" + std::to_string(userid);
+                LOG_DEBUG("心跳超时，踢掉{},取消订阅{}", userid, userchannal);
+                m_redis.unsubscribe(userchannal);
+                m_redis.getRedis().del(keyname);
+            }
+            kickVec.clear();
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+    }
+}
+
+void SessionService::updateAliveTime(int userid)
+{
+    m_clientsMap[userid].m_lastheartTime = getCurrentTimeMillis();
+    ;
+}
+
+void SessionService::removeAll(std::vector<int> &removeVec)
+{
+    std::lock_guard<std::mutex> lock(m_clientsmapMtx);
+    for (int &userid : removeVec)
+    {
+        auto it = m_clientsMap.find(userid);
+        if (it != m_clientsMap.end())
+        {
+            auto conn = it->second.m_conn;
+            m_clientsMapPtr.erase(conn);
+            m_clientsMap.erase(it);
+            conn->shutdown();
+        }
+    }
 }

@@ -17,17 +17,16 @@ ChatService::ChatService()
     m_handlemap.insert({static_cast<int>(MsgType::MSG_JOIN_GROUP), std::bind(&GroupService::joinGroup, &m_groupservice, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN_BY_TOKEN), std::bind(&AuthService::LoginByToken, &m_authservcie, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_GROUP_CHAT), std::bind(&MessageService::ChatGroup, &m_messageservice, _1, _2, _3)});
-    m_authservcie.setCheckCallBack(std::bind(&SessionService::checkAndKickLogin,&m_sessionservice,_1));
-    m_friendservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin,&m_sessionservice,_1));
-    m_messageservice.setKickCallBack(std::bind(&SessionService::kickuser,&m_sessionservice,_1));
-    m_messageservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin,&m_sessionservice,_1));
+    // m_handlemap.insert({static_cast<int>(MsgType::MSG_HEARTBEAT), std::bind(&SessionService::updateAliveTime, &m_sessionservice, _1, _2, _3)});
+    m_authservcie.setCheckCallBack(std::bind(&SessionService::checkAndKickLogin, &m_sessionservice, _1));
+    m_friendservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin, &m_sessionservice, _1));
+    m_messageservice.setKickCallBack(std::bind(&SessionService::kickuser, &m_sessionservice, _1));
+    m_messageservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin, &m_sessionservice, _1));
 }
 
 ChatService::~ChatService()
 {
 }
-
-
 
 MsgHandle ChatService::getHandler(int msgid)
 {
@@ -45,7 +44,6 @@ MsgHandle ChatService::getHandler(int msgid)
     return it->second;
 }
 
-
 ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
 {
     if (src.empty())
@@ -62,14 +60,14 @@ ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
     }
     catch (const std::exception &e)
     {
-        return {false, ErrType::INVALID_REQUEST, "json解析失败"};
+        return {false, ErrType::INVALID_REQUEST, "服务器json解析失败"};
     }
 
     if (data.is_null() || !data.is_object() || data.value("msgid", -1) == -1)
     {
         return {false, ErrType::PARAM_TYPE_ERROR, "消息类型错误"};
     }
-    if (data["msgid"] == MsgType::MSG_LOGIN)
+    if (data["msgid"] == MsgType::MSG_LOGIN || data["msgid"] == MsgType::MSG_HEARTBEAT)
     {
         return {true, ErrType::SUCCESS, "登录，通过验证，不检验载荷"};
     }
@@ -86,17 +84,24 @@ ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
     return {true, ErrType::SUCCESS, ""};
 }
 
-
-void ChatService::handMessage(const TcpConnectionPtr &conn,json &js)
+void ChatService::handMessage(const TcpConnectionPtr &conn, json &js)
 {
     int msgid = js["msgid"];
     std::string token = js["token"];
     int userid = m_authservcie.verifyToken(token);
-    if (userid != -1 || (msgid == static_cast<int>(MsgType::MSG_LOGIN))
-    || (msgid == static_cast<int>(MsgType::MSG_REGISTER)))
+    if (userid != -1 ||
+         (msgid == static_cast<int>(MsgType::MSG_LOGIN)) || 
+         (msgid == static_cast<int>(MsgType::MSG_REGISTER)))
     {
-        MsgHandle handle = getHandler(msgid);
-        handle(conn, js["data"], userid);
+        if (msgid != static_cast<int>(MsgType::MSG_HEARTBEAT))
+        {
+            MsgHandle handle = getHandler(msgid);
+            handle(conn, js["data"], userid);
+        }
+        if (userid != -1)
+        {
+            m_sessionservice.updateAliveTime(userid);
+        }
     }
     else
     {
@@ -107,5 +112,5 @@ void ChatService::handMessage(const TcpConnectionPtr &conn,json &js)
 
 void ChatService::removeConnection(const TcpConnectionPtr &conn)
 {
-    m_sessionservice.removeConnection({-1,true,false,conn});
+    m_sessionservice.removeConnection({-1, true, false, conn});
 }

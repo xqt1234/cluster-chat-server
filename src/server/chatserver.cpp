@@ -43,9 +43,12 @@ void ChatServer::setThreadNum(int num)
 void ChatServer::onMessage(const TcpConnectionPtr &conn, Buffer *buf)
 {
     std::string msg = buf->readAllAsString();
-    // std::cout << msg << std::endl;
     json js;
     ChatService::ValidResult res = m_service.checkValid(msg, js);
+    if(js["msg"] != MsgType::MSG_HEARTBEAT)
+    {
+        std::cout << msg << std::endl;
+    }
     if (!res.success)
     {
         js = m_service.buildErrorResponse(std::move(res));

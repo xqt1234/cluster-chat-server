@@ -8,6 +8,8 @@
 #include "public.h"
 #include "callbacks.h"
 #include "token.h"
+#include <thread>
+#include <atomic>
 using json = nlohmann::json;
 
 class Group;
@@ -37,9 +39,10 @@ private:
     ClientNet m_clientNet;
     std::unordered_map<std::string, Func> m_commandHandleMap;
     std::unordered_map<int,MsgHandler> m_ackHandlerMap;
+    std::thread m_heartThread;
 public:
     ClientService(/* args */);
-    ~ClientService() = default;
+    ~ClientService();
     
     // ======== 认证和协议相关 =========
     ValidResult sendlogin(std::string &str);
@@ -59,6 +62,8 @@ public:
     bool handleService(std::string &str);
     void addCommand(std::string str, Func func);
     std::unordered_map<std::string, Func> &getHandleMap();
+    void stopService();
+    void startHeart();
 
     // ======= 用户相关资料 =======
     bool setState(json& js);
@@ -69,22 +74,22 @@ public:
     const std::vector<std::string> &getOfflineGroup() const { return m_offline_group; }
     std::vector<std::string> &getOfflineFriend() { return m_offline_friend; }
     std::vector<std::string> &getOfflineGroup() { return m_offline_group; }
-    
+    std::string getFriendName(int friendid);
     
 private:
     // ======= 管理服务  =======
     bool addFriend(std::string src);
     bool createGroup(std::string src);
     bool joinGroup(std::string src);
-    
+    void sendHeart();
     // ==== 聊天相关 ======
     bool chatOne(std::string src);
     bool chatGroup(std::string src);
 
 private:
-    inline long long getCurrentTimeMillis();
+    int64_t getCurrentTimeMillis();
     static const size_t MAX_JSON_LENGTH = 1024 * 1024; // 1MB
     std::string m_token;
-
-
+    int64_t m_lastSendTime{0};
+    std::atomic<bool> m_stop{false};
 };

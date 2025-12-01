@@ -48,7 +48,7 @@ int main()
     //     std::cout << "插入失败" << std::endl;
     // }
     // return 0;
-    Logger::getInstance().setLogLevel(LogLevel::INFO);
+    Logger::getInstance().setLogLevel(LogLevel::DEBUG);
     gloop = new EventLoop();
     Config& conf = Config::getInstance();
     conf.loadConfig("serverconf.ini");

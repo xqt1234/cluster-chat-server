@@ -33,6 +33,7 @@ void AuthService::login(const TcpConnectionPtr &conn, json &js, int tmpid)
         m_CheckCallBack({userid,false,false,conn});
     }
     m_redis.subscribe("to:" + std::to_string(userid));
+    LOG_DEBUG("订阅频道：{}","to:" + std::to_string(userid));
     buildLoginInfo(conn, js, user, false);
 }
 

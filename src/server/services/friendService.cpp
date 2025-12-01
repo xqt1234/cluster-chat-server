@@ -51,7 +51,8 @@ void FriendService::addFriend(const TcpConnectionPtr &conn, json &js, int userid
         }
         else if (info.m_isOnline)
         {
-            m_redis.publish(std::to_string(friendid), sendf.dump());
+            std::string userchannal = "to:" + std::to_string(friendid);
+            m_redis.publish(userchannal, sendf.dump());
         }
         else
         {

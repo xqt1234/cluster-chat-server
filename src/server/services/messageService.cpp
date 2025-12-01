@@ -28,9 +28,9 @@ void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
         {"msg", js["msg"]},
         {"msgid", static_cast<int>(MsgType::MSG_PRIVATE_CHAT_ACK)},
         {"fromid", userid}};
-    std::string offlinemsg = resjs.dump();
+    
     json sendjson = buildResponse(resjs, MsgType::MSG_PRIVATE_CHAT_ACK);
-
+    std::string offlinemsg = sendjson.dump();
     if (m_getConn)
     {
         ConnectInfo info = m_getConn(toid);
@@ -66,8 +66,9 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
         {"msgid", static_cast<int>(MsgType::MSG_GROUP_CHAT_ACK)},
         {"groupid", groupid},
         {"userid", userid}};
-    std::string offlinemsg = resjs.dump();
+    //std::string offlinemsg = resjs.dump();
     json sendjson = buildResponse(resjs, MsgType::MSG_GROUP_CHAT_ACK);
+    std::string offlinemsg = sendjson.dump();
     std::unordered_set<int> userset = RelationCache::getInstance().getAllUserFromGroup(groupid);
     // 后期需要替换存储方式。小群的时候，采用写扩散方案
     for (int toid : userset)
@@ -76,7 +77,6 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
         {
             continue;
         }
-
         ConnectInfo info = m_getConn(toid);
         if (info.m_isLocal)
         {

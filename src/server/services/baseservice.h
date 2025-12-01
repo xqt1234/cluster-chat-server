@@ -27,6 +27,7 @@ public:
         bool m_isLocal = false;
         TcpConnectionPtr m_conn = nullptr;
         long long m_version = -1;
+        int64_t m_lastheartTime = -1;
     };
 protected:
     static UserDAO m_userdao;
@@ -39,7 +40,7 @@ public:
     BaseService(/* args */) = default;
     virtual ~BaseService() = default;
     json buildResponse(json& obj,MsgType type);
-    inline long long getCurrentTimeMillis();
+    int64_t getCurrentTimeMillis();
     json buildErrorResponse(ValidResult&& errmsg);
 };
 

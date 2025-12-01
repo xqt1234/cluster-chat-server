@@ -36,7 +36,7 @@ bool RedisTool::connect()
         ConnectionOptions connection_opts;
         connection_opts.host = config.getValue("redisip", "127.0.0.1");            // Redis服务器地址
         connection_opts.port = atoi(config.getValue("redisport", "6379").c_str()); // Redis服务器端口
-        connection_opts.socket_timeout = std::chrono::milliseconds(5);
+        connection_opts.socket_timeout = std::chrono::milliseconds(100);
         connection_opts.password = config.getValue("redispassword", "xqt123").c_str(); // 如果Redis服务器设置了密码，取消注释并填写
         m_pub_redis = std::make_unique<Redis>(connection_opts);
         // 配置连接池选项 [citation:9]

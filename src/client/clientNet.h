@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <functional>
+#include <atomic>
 class ClientNet
 {
 public:
@@ -8,6 +9,7 @@ public:
 private:
     int m_fd{-1};
     DisconnectionCallBack m_disconnection;
+    std::atomic<bool> m_isconnected{false};
 public:
     ClientNet(/* args */);
     ~ClientNet();

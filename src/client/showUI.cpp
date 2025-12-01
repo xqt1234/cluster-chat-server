@@ -47,6 +47,7 @@ bool showUI::showLogin()
         std::cout << "登录失败----" << ret.message << std::endl;
         return false;
     }
+    m_service.startHeart();
     return true;
 }
 
@@ -64,6 +65,7 @@ int showUI::showStart()
     if(ret.success)
     {
         m_hasLogin = true;
+        m_service.startHeart();
         return 1;
     }
     // 错误消息就重新登录
@@ -166,12 +168,12 @@ void showUI::quit()
 {
     m_hasLogin = true;
     m_quit = true;
+    m_service.stopService();
 }
 
 void showUI::logout()
 {
-    m_quit = true;
-    m_hasLogin = false;
+    quit();
     m_service.removeUserToken();
 }
 

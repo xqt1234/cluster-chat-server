@@ -20,7 +20,7 @@ ChatService::ChatService()
     // m_handlemap.insert({static_cast<int>(MsgType::MSG_HEARTBEAT), std::bind(&SessionService::updateAliveTime, &m_sessionservice, _1, _2, _3)});
     m_authservcie.setCheckCallBack(std::bind(&SessionService::checkAndKickLogin, &m_sessionservice, _1));
     m_friendservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin, &m_sessionservice, _1));
-    m_messageservice.setKickCallBack(std::bind(&SessionService::kickuser, &m_sessionservice, _1));
+    //m_messageservice.setKickCallBack(std::bind(&SessionService::kickuser, &m_sessionservice, _1));
     m_messageservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin, &m_sessionservice, _1));
 }
 

@@ -6,7 +6,7 @@ FriendDAO BaseService::m_frienddao;
 GroupDAO BaseService::m_groupdao;
 OffineMessageDAO BaseService::m_offlinemsgdao;
 RedisTool BaseService::m_redis;
-std::string BaseService::m_kickchannelname;
+
 json BaseService::buildResponse(json &obj, MsgType type)
 {
     json response = {

@@ -6,9 +6,9 @@
 AuthService::AuthService()
 {
     m_redis.connect();
-    m_kickchannelname = "kick_" + Config::getInstance().getValue("servername","server01");
-    LOG_DEBUG("订阅频道：{}",m_kickchannelname);
-    m_redis.subscribe(m_kickchannelname);
+    //m_kickchannelname = "kick_" + Config::getInstance().getValue("servername","server01");
+    // LOG_DEBUG("订阅频道：{}",m_kickchannelname);
+    // m_redis.subscribe(m_kickchannelname);
     m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
 }
 void AuthService::login(const TcpConnectionPtr &conn, json &js, int tmpid)
@@ -108,7 +108,7 @@ void AuthService::buildLoginInfo(const TcpConnectionPtr &conn, json &js, User &u
                 {"username", fuser.getUserName()},
                 {"state", fuser.getState()}});
         }
-        RelationCache::getInstance().initFriends(user.getId(), friendvec);
+        //RelationCache::getInstance().initFriends(user.getId(), friendvec);
         resjs["friends"] = friendsobj;
     }
     std::vector<Group> groups = m_groupdao.queryGroupsByUserId(user.getId());

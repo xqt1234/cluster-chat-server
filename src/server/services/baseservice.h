@@ -35,7 +35,6 @@ protected:
     static GroupDAO m_groupdao;
     static OffineMessageDAO m_offlinemsgdao;
     static RedisTool m_redis;
-    static std::string m_kickchannelname;
 public:
     BaseService(/* args */) = default;
     virtual ~BaseService() = default;

@@ -191,7 +191,6 @@ void ClientService::addCommand(std::string str, Func func)
 void ClientService::getRecv()
 {
     std::string resstr = m_clientNet.recvmsg();
-    std::cout << resstr << std::endl;
     json resjs;
     ValidResult res = checkValid(resstr, resjs);
     if (!res.success)
@@ -376,7 +375,7 @@ ClientService::ValidResult ClientService::checkValid(std::string &src, json &dat
                 errmsg = data["message"];
             }
         }
-        return {true, ErrType::PARAM_TYPE_ERROR, errmsg};
+        return {false, ErrType::PARAM_TYPE_ERROR, errmsg};
     }
     return {true, ErrType::SUCCESS, ""};
 }

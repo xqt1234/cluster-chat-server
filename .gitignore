@@ -4,6 +4,7 @@
 src/client/log/*
 src/client/token/*
 src/server/log/*
+src/server/redis/redistest/*
 /.vscode/settings.json
 /.vscode/
 /docs/jsonformat.json

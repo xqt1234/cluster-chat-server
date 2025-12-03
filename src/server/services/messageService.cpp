@@ -28,7 +28,7 @@ void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
         {"msg", js["msg"]},
         {"msgid", static_cast<int>(MsgType::MSG_PRIVATE_CHAT_ACK)},
         {"fromid", userid}};
-    
+
     json sendjson = buildResponse(resjs, MsgType::MSG_PRIVATE_CHAT_ACK);
     std::string offlinemsg = sendjson.dump();
     if (m_getConn)
@@ -40,7 +40,7 @@ void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
         }
         else if (info.m_isOnline)
         {
-            LOG_DEBUG("通过redis向conn发送消息 key:{} value:{}","to:" + std::to_string(toid), offlinemsg);
+            LOG_DEBUG("通过redis向conn发送消息 key:{} value:{}", "to:" + std::to_string(toid), offlinemsg);
             m_redis.publish("to:" + std::to_string(toid), offlinemsg);
         }
         else
@@ -66,7 +66,7 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
         {"msgid", static_cast<int>(MsgType::MSG_GROUP_CHAT_ACK)},
         {"groupid", groupid},
         {"userid", userid}};
-    //std::string offlinemsg = resjs.dump();
+    // std::string offlinemsg = resjs.dump();
     json sendjson = buildResponse(resjs, MsgType::MSG_GROUP_CHAT_ACK);
     std::string offlinemsg = sendjson.dump();
     std::unordered_set<int> userset = RelationCache::getInstance().getAllUserFromGroup(groupid);
@@ -84,7 +84,7 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
         }
         else if (info.m_isOnline)
         {
-            LOG_DEBUG("通过redis向conn发送消息 key:{} value:{}","to:" + std::to_string(toid), offlinemsg);
+            LOG_DEBUG("通过redis向conn发送消息 key:{} value:{}", "to:" + std::to_string(toid), offlinemsg);
             m_redis.publish("to:" + std::to_string(toid), offlinemsg);
         }
         else
@@ -98,11 +98,7 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
 void MessageService::handleRedisPublis(std::string key, std::string value)
 {
     LOG_DEBUG("处理发布 key:{} value:{}", key, value);
-    if (key == m_kickchannelname)
-    {
-        m_kickcallBack(value);
-    }
-    else if (key.starts_with("to:"))
+    if (key.starts_with("to:"))
     {
         int index = key.find(":");
         int userid = atoi(key.substr(index + 1).c_str());

@@ -16,5 +16,6 @@ public:
     {
         m_getConn = cb;
     }
+    void isFriend(int userid,int friendid);
 };
 

@@ -8,25 +8,37 @@ RelationCache &RelationCache::getInstance()
 
 void RelationCache::addFriend(int uid, int fid)
 {
-    m_friendMap[uid].insert(fid);
-    m_friendMap[fid].insert(uid);
+    std::shared_lock<std::shared_mutex> lock(m_friendmtx);
+    m_friendMap[uid].m_set.insert(fid);
+    //m_friendMap[fid].m_set.insert(uid);
 }
 
-void RelationCache::initFriends(int uid, std::vector<int> &friends)
+void RelationCache::initFriends(int uid, std::vector<int> &friends,uint64_t currentTime)
 {
-    m_friendMap[uid] = std::unordered_set<int>(friends.begin(), friends.end());
+    std::lock_guard<std::shared_mutex> lock(m_friendmtx);
+    m_friendMap[uid].m_set = std::unordered_set<int>(friends.begin(), friends.end());
+    m_friendMap[uid].m_lastTime = currentTime;
 }
 
 bool RelationCache::isFriend(int uid, int fid)
 {
+    std::shared_lock<std::shared_mutex> lock(m_friendmtx);
     auto it = m_friendMap.find(uid);
-    return it != m_friendMap.end() && it->second.count(fid) > 0;
+    if(it != m_friendMap.end())
+    {
+        auto iit = it->second.m_set.find(fid);
+        if(iit != it->second.m_set.end())
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 void RelationCache::removeFriend(int uid, int fid)
 {
-    m_friendMap[uid].erase(fid);
-    m_friendMap[fid].erase(uid);
+    std::lock_guard<std::shared_mutex> lock(m_friendmtx);
+    m_friendMap[uid].m_set.erase(fid);
 }
 
 void RelationCache::initAllGroupUsers()

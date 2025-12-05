@@ -5,7 +5,6 @@
 #include "config.h"
 AuthService::AuthService()
 {
-    m_redis.connect();
     //m_kickchannelname = "kick_" + Config::getInstance().getValue("servername","server01");
     // LOG_DEBUG("订阅频道：{}",m_kickchannelname);
     // m_redis.subscribe(m_kickchannelname);
@@ -28,10 +27,7 @@ void AuthService::login(const TcpConnectionPtr &conn, json &js, int tmpid)
         conn->send(jsres.dump());
         return;
     }
-    if(m_CheckCallBack)
-    {
-        m_CheckCallBack({userid,false,false,conn});
-    }
+    m_CheckCallBack({userid,false,false,conn});
     m_redis.subscribe("to:" + std::to_string(userid));
     LOG_DEBUG("订阅频道：{}","to:" + std::to_string(userid));
     buildLoginInfo(conn, js, user, false);
@@ -40,10 +36,7 @@ void AuthService::login(const TcpConnectionPtr &conn, json &js, int tmpid)
 void AuthService::LoginByToken(const TcpConnectionPtr &conn, json &js, int userid)
 {
     User user = m_userdao.queryUser(userid);
-    if(m_CheckCallBack)
-    {
-        m_CheckCallBack({userid,false,false,conn});
-    }
+    m_CheckCallBack({userid,false,false,conn});
     m_redis.subscribe("to:" + std::to_string(userid));
     buildLoginInfo(conn, js, user, true);
 }
@@ -108,7 +101,7 @@ void AuthService::buildLoginInfo(const TcpConnectionPtr &conn, json &js, User &u
                 {"username", fuser.getUserName()},
                 {"state", fuser.getState()}});
         }
-        //RelationCache::getInstance().initFriends(user.getId(), friendvec);
+        m_RelationCache.initFriends(user.getId(), friendvec,getCurrentTimeMillis());
         resjs["friends"] = friendsobj;
     }
     std::vector<Group> groups = m_groupdao.queryGroupsByUserId(user.getId());

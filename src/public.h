@@ -91,3 +91,4 @@ enum class ErrType
     CHAT_TOO_FREQUENT = 4004, // 发送过于频繁
     MESSAGE_TOO_LONG = 4005,  // 消息过长
 };
+

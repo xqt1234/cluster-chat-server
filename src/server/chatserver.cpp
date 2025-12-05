@@ -2,7 +2,6 @@
 #include "json.hpp"
 #include "Logger.h"
 #include "chatservice.h"
-#include "relationCache.h"
 using json = nlohmann::json;
 ChatServer::ChatServer(EventLoop *loop, uint16_t port, std::string ipaddr)
     : m_loop(loop), m_server(new TcpServer(loop, port, ipaddr))
@@ -31,7 +30,7 @@ void ChatServer::newConnection(const TcpConnectionPtr &conn)
 
 void ChatServer::start()
 {
-    RelationCache::getInstance().initAllGroupUsers();
+    //RelationCache::getInstance().initAllGroupUsers();
     m_server->start();
 }
 

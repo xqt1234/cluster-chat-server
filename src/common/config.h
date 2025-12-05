@@ -8,7 +8,7 @@ private:
 public:
     void Trim(std::string &str);
     static Config& getInstance();
-    std::string getValue(const std::string& key,const std::string& defalutval);
+    std::string getValue(const std::string& key);
     bool loadConfig(std::string filename);
 private:
     Config(/* args */);

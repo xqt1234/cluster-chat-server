@@ -1,5 +1,15 @@
 #include "friendService.h"
 #include "sessionService.h"
+#include <functional>
+#include <iostream>
+using namespace sw::redis;
+using Attrs = std::unordered_map<std::string, std::string>;
+using Item = std::pair<std::string, Optional<Attrs>>;
+using ItemStream = std::vector<Item>;
+FriendService::FriendService()
+{
+    m_redis.addCommand("addfriend",std::bind(&FriendService::addFriendToLocal,this,std::placeholders::_1));
+}
 void FriendService::addFriend(const TcpConnectionPtr &conn, json &js, int userid)
 {
     int friendid = js.value("friendid", -1);
@@ -26,8 +36,7 @@ void FriendService::addFriend(const TcpConnectionPtr &conn, json &js, int userid
             return;
         }
     }
-
-    RelationCache::getInstance().addFriend(userid, friendid);
+    m_RelationCache.addFriend(userid, friendid);
     User tfriend = m_userdao.queryUser(friendid);
     json resjson{
         {"msg", "添加好友成功"},
@@ -47,12 +56,18 @@ void FriendService::addFriend(const TcpConnectionPtr &conn, json &js, int userid
         ConnectInfo info = m_getConn(friendid);
         if (info.m_isLocal)
         {
+            m_RelationCache.addFriend(friendid,userid);
             info.m_conn->send(sendf.dump());
         }
         else if (info.m_isOnline)
         {
             std::string userchannal = "to:" + std::to_string(friendid);
             m_redis.publish(userchannal, sendf.dump());
+            Attrs attrs = {{"userid", std::to_string(userid)},
+                           {"cmd", "addfriend"},
+                           {"friendid",std::to_string(friendid)},
+                           {"servername", info.m_servername}};
+            m_redis.addToStream(attrs);
         }
         else
         {
@@ -60,4 +75,13 @@ void FriendService::addFriend(const TcpConnectionPtr &conn, json &js, int userid
             m_offlinemsgdao.insert(friendid, sendf.dump());
         }
     }
+}
+
+void FriendService::addFriendToLocal(std::unordered_map<std::string,std::string>& paramMap)
+{
+    
+    int userid = atoi(paramMap["friendid"].c_str());
+    int friendid = atoi(paramMap["userid"].c_str());
+    // std::cout << "通过redis stream添加好友" << "userid:" << userid << " friendid" << friendid << std::endl;
+    m_RelationCache.addFriend(userid,friendid);
 }

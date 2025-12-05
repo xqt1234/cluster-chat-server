@@ -112,5 +112,5 @@ void ChatService::handMessage(const TcpConnectionPtr &conn, json &js)
 
 void ChatService::removeConnection(const TcpConnectionPtr &conn)
 {
-    m_sessionservice.removeConnection({-1, true, false, conn});
+    m_sessionservice.removeConnection({-1, true, false, conn,true});
 }

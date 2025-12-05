@@ -14,22 +14,23 @@ public:
         int64_t m_lastTime;
         std::unordered_set<int> m_set;
     };
-    
+
 private:
     std::unordered_map<int, FriendRelation> m_friendMap;
     std::shared_mutex m_friendmtx;
     std::unordered_map<int, std::unordered_set<int>> m_groupMap;
+
 public:
-    static RelationCache& getInstance();
-    void addFriend(int uid,int fid);
-    void initFriends(int uid,std::vector<int>& friends,uint64_t currentTime);
-    bool isFriend(int uid,int fid);
-    void removeFriend(int uid, int fid); 
-    void initAllGroupUsers();
-    void addUserToGroup(int groupid,int userid);
-    std::unordered_set<int> getAllUserFromGroup(int groupid);
-private:
     RelationCache(/* args */) = default;
     ~RelationCache() = default;
-};
+    void addFriend(int uid, int fid);
+    void initFriends(int uid, std::vector<int> &friends, uint64_t currentTime);
+    bool isFriend(int uid, int fid);
+    void removeFriend(int uid, int fid);
+    void initAllGroupUsers();
+    void addUserToGroup(int groupid, int userid);
+    std::unordered_set<int> getAllUserFromGroup(int groupid);
+    void removeUserInfo(int uid);
+private:
 
+};

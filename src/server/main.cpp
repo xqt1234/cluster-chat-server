@@ -22,6 +22,7 @@ void resethandler(int sigNum)
 }
 int main()
 {
+    
     std::vector<std::string> sqlvec;
     sqlvec.push_back("user");
     sqlvec.push_back("friend");
@@ -34,26 +35,11 @@ int main()
     {
         std::cout << "数据库出错，终止程序" << std::endl;
     }
-    // return 0;
-    // User user;
-    // user.setPassWord("xxxx");
-    // user.setUserName("xiong");
-    // UserDAO userdao;
-    
-    // if(userdao.inserUser(user))
-    // {
-    //     std::cout << "插入成功" << std::endl;
-    // }else
-    // {
-    //     std::cout << "插入失败" << std::endl;
-    // }
-    // return 0;
     Logger::getInstance().setLogLevel(LogLevel::DEBUG);
     gloop = new EventLoop();
     Config& conf = Config::getInstance();
-    conf.loadConfig("serverconf.ini");
-    std::string ipaddr = conf.getValue("serverip","127.0.0.1");
-    uint16_t port = atoi(conf.getValue("serverport","9998").c_str());
+    std::string ipaddr = conf.getValue("serverip");
+    uint16_t port = atoi(conf.getValue("serverport").c_str());
     ChatServer m_server(gloop, port, ipaddr);
     m_server.start();
     gloop->loop();

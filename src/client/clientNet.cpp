@@ -17,10 +17,9 @@ ClientNet::~ClientNet()
 void ClientNet::connect()
 {
     Config &config = Config::getInstance();
-    config.loadConfig("clientconf.ini");
     struct sockaddr_in addr{0};
-    uint16_t port = atoi(config.getValue("chatserverport","9998").c_str());
-    std::string ip = config.getValue("chatserverip","192.168.65.4");
+    uint16_t port = atoi(config.getValue("chatserverport").c_str());
+    std::string ip = config.getValue("chatserverip");
     addr.sin_port = htons(port);
     addr.sin_family = AF_INET;
     inet_pton(AF_INET,ip.c_str(),&addr.sin_addr.s_addr);
@@ -40,7 +39,7 @@ bool ClientNet::send(const std::string& str)
         return false;
     }else
     {
-        LOG_DEBUG("发送成功");
+        //LOG_DEBUG("发送成功");
     }
     return true;
 }

@@ -12,7 +12,6 @@ public:
 private:
     std::unique_ptr<TokenManager> m_tokenManager;
     CheckCallBack m_CheckCallBack;
-    
 public:
     AuthService();
     ~AuthService()= default;

@@ -1,10 +1,10 @@
 #include "relationCache.h"
 #include "groupdao.h"
-RelationCache &RelationCache::getInstance()
-{
-    static RelationCache rcache;
-    return rcache;
-}
+// RelationCache &RelationCache::getInstance()
+// {
+//     static RelationCache rcache;
+//     return rcache;
+// }
 
 void RelationCache::addFriend(int uid, int fid)
 {
@@ -43,6 +43,7 @@ void RelationCache::removeFriend(int uid, int fid)
 
 void RelationCache::initAllGroupUsers()
 {
+    // 规模扩大，可以先使用工具，把群组关系导入到redis中。导入好了再启动服务器。
     GroupDAO groupdao;
     m_groupMap = groupdao.getAllGroupAndUsers();
 }
@@ -54,11 +55,20 @@ void RelationCache::addUserToGroup(int groupid, int userid)
 
 std::unordered_set<int> RelationCache::getAllUserFromGroup(int groupid)
 {
-
     auto it = m_groupMap.find(groupid);
     if(it != m_groupMap.end())
     {
         return it->second;
     }
     return std::unordered_set<int>();
+}
+
+void RelationCache::removeUserInfo(int uid)
+{
+    std::lock_guard<std::shared_mutex> lock(m_friendmtx);
+    auto it = m_friendMap.find(uid);
+    if(it != m_friendMap.end())
+    {
+        m_friendMap.erase(it);
+    }
 }

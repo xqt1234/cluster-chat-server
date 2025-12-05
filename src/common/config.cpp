@@ -7,7 +7,7 @@ bool Config::loadConfig(std::string filename)
     std::ifstream ss(filename);
     if (!ss.is_open())
     {
-        LOG_FATAL("找不到数据库配置文件");
+        LOG_INFO("找不到配置文件{}",filename);
         return false;
     }
     std::string line;
@@ -28,8 +28,7 @@ bool Config::loadConfig(std::string filename)
         std::string tmpval = line.substr(eq_pos + 1);
         Trim(tmpkey);
         Trim(tmpval);
-        m_configMap.insert({tmpkey,tmpval});
-        
+        m_configMap.insert({tmpkey, tmpval});
     }
     // for(auto& [key,val]: m_configMap)
     // {
@@ -58,17 +57,21 @@ Config &Config::getInstance()
     return config;
 }
 
-std::string Config::getValue(const std::string& key,const std::string& defalutval)
+std::string Config::getValue(const std::string &key)
 {
     auto it = m_configMap.find(key);
-    if(it != m_configMap.end())
+    if (it != m_configMap.end())
     {
         return it->second;
     }
-    return defalutval;
+    LOG_FATAL("读取配置{}出错", key);
+    return "";
 }
 
 Config::Config()
 {
-    
+    loadConfig("serverconf.ini");
+    loadConfig("mysql.ini");
+    loadConfig("redis.ini");
+    loadConfig("clientconf.ini");
 }

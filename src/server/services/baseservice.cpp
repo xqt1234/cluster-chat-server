@@ -6,7 +6,10 @@ FriendDAO BaseService::m_frienddao;
 GroupDAO BaseService::m_groupdao;
 OffineMessageDAO BaseService::m_offlinemsgdao;
 RedisTool BaseService::m_redis;
-
+RelationCache BaseService::m_RelationCache;
+BaseService::BaseService()
+{
+}
 json BaseService::buildResponse(json &obj, MsgType type)
 {
     json response = {

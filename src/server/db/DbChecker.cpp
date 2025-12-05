@@ -130,12 +130,11 @@ std::unique_ptr<sql::PreparedStatement> DbChecker::prepare(std::string sql)
 void DbChecker::loadConfig()
 {
     Config &config = Config::getInstance();
-    config.loadConfig("mysql.ini");
-    m_hostaddr = config.getValue("ip", "127.0.0.1");
-    m_port = atoi(config.getValue("port", "3306").c_str());
-    m_username = config.getValue("username", "root");
-    m_dbname = config.getValue("dbname", "chatdb");
-    m_password = config.getValue("password", "xqt123");
+    m_hostaddr = config.getValue("ip");
+    m_port = atoi(config.getValue("port").c_str());
+    m_username = config.getValue("username");
+    m_dbname = config.getValue("dbname");
+    m_password = config.getValue("password");
 }
 
 void DbChecker::createDefaultTables(std::string filename)

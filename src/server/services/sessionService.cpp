@@ -2,20 +2,16 @@
 #include "Logger.h"
 #include <chrono>
 #include "config.h"
+#include <unordered_map>
 using namespace sw::redis;
 using Attrs = std::unordered_map<std::string, std::string>;
 using Item = std::pair<std::string, Optional<Attrs>>;
 using ItemStream = std::vector<Item>;
 SessionService::SessionService()
 {
-    m_servername = Config::getInstance().getValue("servername", "server01");
-    m_groupname = "group" + m_servername;
-
-    // m_redis.getRedis().xgroup_destroy("kickuser", m_groupname);
-    // m_redis.getRedis().xgroup_create("kickuser", m_groupname, "$", true);
+    m_servername = Config::getInstance().getValue("servername");
+    m_redis.addCommand("kickuser",std::bind(&SessionService::kickuser,this,std::placeholders::_1));
     m_aliveThread = std::thread(std::bind(&SessionService::checkAlive, this));
-
-    m_kickUserThread = std::thread(std::bind(&SessionService::handKickUser, this));
 }
 SessionService::~SessionService()
 {
@@ -23,50 +19,6 @@ SessionService::~SessionService()
     if (m_aliveThread.joinable())
     {
         m_aliveThread.join();
-    }
-}
-
-void SessionService::handKickUser()
-{
-    sw::redis::Redis &redis = m_redis.getRedis();
-    std::cout << "服务器名称:" << m_servername << "groupname: " << m_groupname << std::endl;
-    while (!m_stop.load())
-    {
-        try
-        {
-            std::unordered_map<std::string, ItemStream> result;
-            // 只读redis的创建参数。那边不设置，这里就成阻塞了
-            redis.xread("kickuser", "$", std::chrono::seconds(1), 10, std::inserter(result, result.end()));
-            for (auto &[keyname, messages] : result)
-            {
-                std::cout << "keyname:" << keyname << std::endl;
-                for (auto &[msg_id, fields] : messages)
-                {
-                    std::cout << "msg_id: " << msg_id << std::endl;
-                    if (fields.has_value())
-                    {
-                        std::unordered_map<std::string, std::string> &valuesa = fields.value();
-                        // if (valuesa["servername"] == m_servername)
-                        // {
-                            std::cout << "servername--" << valuesa["servername"] << std::endl;
-                            int userid = atoi(valuesa["userid"].c_str());
-                            std::string version = valuesa["version"];
-                            std::cout << "userid: " << userid << " version:" << version << std::endl;
-                            kickuser(userid, version);
-                            //redis.xdel("key", msg_id);
-                        //}
-                    }
-                }
-            }
-        }
-        catch (const sw::redis::TimeoutError &)
-        {
-            continue;
-        }
-        catch (const std::exception &e)
-        {
-            LOG_ERROR("{}读取消息错误{}", m_servername, e.what());
-        }
     }
 }
 
@@ -106,11 +58,12 @@ bool SessionService::removeConnection(const ConnectInfo &info, bool rstate)
             res = true;
         }
     }
-    if (res)
+    if (rstate)
     {
         std::string keyname = "userid:" + std::to_string(userid);
         std::string userchannal = "to:" + std::to_string(userid);
-        //m_redis.unsubscribe(userchannal);
+        m_redis.unsubscribe(userchannal);
+        m_RelationCache.removeUserInfo(userid);
     }
     return res;
 }
@@ -132,7 +85,7 @@ void SessionService::checkAndKickLogin(const ConnectInfo &info)
     long long newVersion = redis.incr("newVersion");
     // 拼接，删除的时候，验证，如果是该版本，就删除
     std::string valuestr = m_servername + ":" + std::to_string(newVersion);
-    std::cout << "本次登录 userid：" << userid << "新建的版本号:" << newVersion << "服务名称是" << m_groupname << std::endl;
+    //std::cout << "本次登录 userid：" << userid << "新建的版本号:" << newVersion << "服务名称是" << m_servername << std::endl;
     // 本地有连接就删除
     removeConnection({userid, false, false, nullptr, -1});
 
@@ -140,6 +93,7 @@ void SessionService::checkAndKickLogin(const ConnectInfo &info)
     if (resultvalue.has_value())
     {
         std::string restr = resultvalue.value();
+        std::cout << restr << std::endl;
         int index = restr.find(":");
         std::string kickchannalname = restr.substr(0, index);
         std::string lastVersion = restr.substr(index + 1);
@@ -150,22 +104,21 @@ void SessionService::checkAndKickLogin(const ConnectInfo &info)
                            {"cmd", "kickuser"},
                            {"servername", kickchannalname},
                            {"version", lastVersion}};
-            auto id = m_redis.getRedis().xadd("kickuser", "*", attrs.begin(), attrs.end());
+            m_redis.addToStream(attrs);
         }
     }
     else
     {
         LOG_DEBUG("不踢人，之前没有该用户");
     }
-    // std::string userchannal = "user:" + std::to_string(userid);
-    // m_redis.subscribe(userchannal);
     addConnection({userid, false, false, info.m_conn, newVersion});
 }
 
-void SessionService::kickuser(int userid, std::string version)
+void SessionService::kickuser(std::unordered_map<std::string,std::string>& paramMap)
 {
-    long long versionid = atol(version.c_str());
-    std::cout << "准备踢人版本号是：" << version << std::endl;
+    int userid = atoi(paramMap["userid"].c_str());
+    long long versionid = atol(paramMap["version"].c_str());
+    //std::cout << "准备踢人版本号是：" << versionid << std::endl;
     bool res = removeConnection({userid, false, false, nullptr, versionid});
     std::string userchannal = "to:" + std::to_string(userid);
     LOG_DEBUG("踢掉{},取消订阅{}", userid, userchannal);
@@ -176,11 +129,11 @@ void SessionService::kickuser(int userid, std::string version)
     }
     else
     {
-        std::cout << "本地没有找到该用户" << std::to_string(userid) << std::endl;
+        //std::cout << "本地没有找到该用户" << std::to_string(userid) << std::endl;
     }
 }
 
-BaseService::ConnectInfo SessionService::checkHasLogin(int userid)
+ConnectInfo SessionService::checkHasLogin(int userid)
 {
     {
         std::lock_guard<std::mutex> lock(m_clientsmapMtx);
@@ -195,7 +148,9 @@ BaseService::ConnectInfo SessionService::checkHasLogin(int userid)
     auto resultvalue = redis.get(keyname);
     if (resultvalue.has_value())
     {
-        return {userid, true, false, nullptr};
+        int index = resultvalue.value().find(":");
+        std::string servername = resultvalue.value().substr(0,index);
+        return {userid, true, false, nullptr,-1,-1,servername};
     }
     return {userid, false, false, nullptr};
 }
@@ -230,7 +185,7 @@ void SessionService::checkAlive()
         }
         if(count % 20 == 0)
         {
-            m_redis.getRedis().xtrim("mystream", 1000, true);
+            m_redis.getRedis().xtrim("cmds", 1000, true);
         }
         std::this_thread::sleep_for(std::chrono::seconds(10));
     }

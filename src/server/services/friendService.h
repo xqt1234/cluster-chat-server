@@ -9,13 +9,15 @@ private:
     GetConnCallBack m_getConn;
     FriendDAO m_frienddao;
 public:
-    FriendService(/* args */) = default;
+    FriendService();
     ~FriendService() = default;
     void addFriend(const TcpConnectionPtr &conn, json &js,int userid);
     void setGetConnCallBack(const GetConnCallBack& cb)
     {
         m_getConn = cb;
     }
-    void isFriend(int userid,int friendid);
+    // void isFriend(int userid,int friendid);
+private:
+    void addFriendToLocal(std::unordered_map<std::string,std::string>& paramMap);
 };
 

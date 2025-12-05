@@ -3,6 +3,7 @@
 #include <iostream>
 #include "Logger.h"
 using json = nlohmann::json;
+
 MessageService::MessageService()
 {
     m_redis.init_notify_handle(std::bind(&MessageService::handleRedisPublis, this, _1, _2));
@@ -17,7 +18,7 @@ void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
         conn->send(jsres.dump());
         return;
     }
-    bool isfriend = RelationCache::getInstance().isFriend(userid, toid);
+    bool isfriend = m_RelationCache.isFriend(userid, toid);
     if (!isfriend)
     {
         json jsres = buildErrorResponse({true, ErrType::FRIEND_NOT_EXIST, "对方还是不是你的好友"});
@@ -69,7 +70,7 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
     // std::string offlinemsg = resjs.dump();
     json sendjson = buildResponse(resjs, MsgType::MSG_GROUP_CHAT_ACK);
     std::string offlinemsg = sendjson.dump();
-    std::unordered_set<int> userset = RelationCache::getInstance().getAllUserFromGroup(groupid);
+    std::unordered_set<int> userset = m_RelationCache.getAllUserFromGroup(groupid);
     // 后期需要替换存储方式。小群的时候，采用写扩散方案
     for (int toid : userset)
     {

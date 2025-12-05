@@ -6,6 +6,10 @@
 #include <optional>
 #include <mutex>
 #include <vector>
+#include <atomic>
+#include <unordered_map>
+#include "callBacks.h"
+using Attrs = std::unordered_map<std::string, std::string>;
 class RedisTool
 {
 private:
@@ -18,18 +22,26 @@ private:
     std::vector<std::string> m_subs;
     std::vector<std::string> m_unsubs;
     std::thread m_observeThread;
-    bool m_running{false};
+    std::atomic<bool> m_running{false};
     std::function<void(std::string, std::string)> m_msgcallback;
+    std::unordered_map<std::string, RedisCallBack> m_commandsMap;
+    std::thread m_streamThread;
+    std::string m_servername;
 public:
     RedisTool(/* args */);
     ~RedisTool();
-    sw::redis::Redis& getRedis() { return *m_redispool; }
-    std::optional<std::string> get(const std::string& key);
+    sw::redis::Redis &getRedis() { return *m_redispool; }
+    std::optional<std::string> get(const std::string &key);
     bool connect();
-    bool publish(const std::string& key,const std::string& str);
-    bool subscribe(const std::string& channel);
-    bool unsubscribe(const std::string& channel);
+    bool publish(const std::string &key, const std::string &str);
+    bool subscribe(const std::string &channel);
+    bool unsubscribe(const std::string &channel);
     void observver_userid_message();
-    void recvMsg(std::string key,std::string value);
+    void recvMsg(std::string key, std::string value);
     void init_notify_handle(std::function<void(std::string, std::string)> fn);
+    void addToStream(Attrs& attrs);
+    void addCommand(const std::string& command,const RedisCallBack& cb);
+private:
+    void createStream();
+    void recvRedisStream();
 };

@@ -5,8 +5,11 @@
 #include "config.h"
 using namespace std;
 using namespace sw::redis;
+using Item = std::pair<std::string, Optional<Attrs>>;
+using ItemStream = std::vector<Item>;
 RedisTool::RedisTool()
 {
+    connect();
 }
 
 RedisTool::~RedisTool()
@@ -17,6 +20,10 @@ RedisTool::~RedisTool()
     {
         m_observeThread.join();
     }
+    if(m_streamThread.joinable())
+    {
+        m_streamThread.join();
+    }
 }
 
 std::optional<std::string> RedisTool::get(const std::string &key)
@@ -26,18 +33,18 @@ std::optional<std::string> RedisTool::get(const std::string &key)
 
 bool RedisTool::connect()
 {
-
     Config &config = Config::getInstance();
-    config.loadConfig("redis.ini");
+    
+    m_servername = Config::getInstance().getValue("servername");
     try
     {
         LOG_DEBUG("正在连接redis.....");
         // 配置连接选项
         ConnectionOptions connection_opts;
-        connection_opts.host = config.getValue("redisip", "127.0.0.1");            // Redis服务器地址
-        connection_opts.port = atoi(config.getValue("redisport", "6379").c_str()); // Redis服务器端口
+        connection_opts.host = config.getValue("redisip");            // Redis服务器地址
+        connection_opts.port = atoi(config.getValue("redisport").c_str()); // Redis服务器端口
         connection_opts.socket_timeout = std::chrono::milliseconds(100);
-        connection_opts.password = config.getValue("redispassword", "xqt123").c_str(); // 如果Redis服务器设置了密码，取消注释并填写
+        connection_opts.password = config.getValue("redispassword").c_str(); // 如果Redis服务器设置了密码，取消注释并填写
         m_pub_redis = std::make_unique<Redis>(connection_opts);
         // 配置连接池选项 [citation:9]
         ConnectionPoolOptions pool_opts;
@@ -55,6 +62,7 @@ bool RedisTool::connect()
         m_sub_redis->subscribe("redis:close");
         m_observeThread = std::thread(std::bind(&RedisTool::observver_userid_message, this));
         LOG_DEBUG("redis连接成功!");
+        createStream();
         return true;
     }
     catch (const std::exception &e)
@@ -74,26 +82,26 @@ void RedisTool::observver_userid_message()
         {
             {
                 std::lock_guard<std::mutex> lock(m_subMtx);
-                if(!m_subs.empty())
+                if (!m_subs.empty())
                 {
                     m_subs.swap(subs);
                 }
-                if(!m_unsubs.empty())
+                if (!m_unsubs.empty())
                 {
                     m_unsubs.swap(usubs);
                 }
             }
-            if(!subs.empty())
+            if (!subs.empty())
             {
-                for(auto& channel : subs)
+                for (auto &channel : subs)
                 {
                     m_sub_redis->subscribe(channel);
                 }
                 subs.clear();
             }
-            if(!usubs.empty())
+            if (!usubs.empty())
             {
-                for(auto& channel : usubs)
+                for (auto &channel : usubs)
                 {
                     m_sub_redis->unsubscribe(channel);
                 }
@@ -170,4 +178,71 @@ bool RedisTool::unsubscribe(const std::string &channel)
 void RedisTool::init_notify_handle(std::function<void(std::string, std::string)> fn)
 {
     m_msgcallback = fn;
+}
+
+void RedisTool::addToStream(Attrs &attrs)
+{
+    m_redispool->xadd("cmds", "*", attrs.begin(), attrs.end());
+}
+
+void RedisTool::addCommand(const std::string& command,const RedisCallBack& cb)
+{
+    m_commandsMap.insert({command,cb});
+}
+
+void RedisTool::createStream()
+{
+    m_streamThread = std::thread(std::bind(&RedisTool::recvRedisStream, this));
+}
+
+void RedisTool::recvRedisStream()
+{
+    // sw::redis::Redis &redis = m_redis.getRedis();
+    while (m_running.load())
+    {
+        try
+        {
+            std::unordered_map<std::string, ItemStream> result;
+            // 只读redis的创建参数。那边不设置，这里就成阻塞了
+            m_redispool->xread("cmds", "$", std::chrono::seconds(1), 10, std::inserter(result, result.end()));
+            for (auto &[keyname, messages] : result)
+            {
+                for (auto &[msg_id, fields] : messages)
+                {
+                    if (!fields.has_value())
+                    {
+                        continue;
+                    }
+                    std::unordered_map<std::string, std::string> &valuesa = fields.value();
+                    // for (auto &[key, value] : valuesa)
+                    // {
+                    //     std::cout << key << " " << value << std::endl;
+                    // }
+                    if (valuesa["servername"] == m_servername)
+                    {
+                        auto command = m_commandsMap.find(valuesa["cmd"]);
+                        if (command != m_commandsMap.end())
+                        {
+                            command->second(valuesa);
+                        }else
+                        {
+                            LOG_ERROR("没有找到命令{}",valuesa["cmd"]);
+                        }
+                    }
+                    // else
+                    // {
+                    //     std::cout << "收到的服务名称是" << valuesa["servername"] << "本机服务是：" << m_servername << std::endl;
+                    // }
+                }
+            }
+        }
+        catch (const sw::redis::TimeoutError &)
+        {
+            continue;
+        }
+        catch (const std::exception &e)
+        {
+            LOG_ERROR("{}读取消息错误{}", m_servername, e.what());
+        }
+    }
 }

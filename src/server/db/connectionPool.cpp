@@ -145,14 +145,13 @@ void ConnectionPool::scanFunc()
 void ConnectionPool::loadConfig()
 {
     Config &config = Config::getInstance();
-    config.loadConfig("mysql.ini");
-    m_ip = config.getValue("ip", "127.0.0.1");
-    m_port = atoi(config.getValue("port", "3306").c_str());
-    m_username = config.getValue("username","root");
-    m_dbname = config.getValue("dbname", "chatdb");
-    m_password = config.getValue("password", "xqt123");
-    m_initSize = atoi(config.getValue("initSize", "4").c_str());
-    m_maxSize = atoi(config.getValue("maxSize", "10").c_str());
-    m_maxIdleTime = atoi(config.getValue("maxIdleTime", "60").c_str());
-    m_connectTimeOut = atoi(config.getValue("connectionTimeOut", "100").c_str());
+    m_ip = config.getValue("ip");
+    m_port = atoi(config.getValue("port").c_str());
+    m_username = config.getValue("username");
+    m_dbname = config.getValue("dbname");
+    m_password = config.getValue("password");
+    m_initSize = atoi(config.getValue("initSize").c_str());
+    m_maxSize = atoi(config.getValue("maxSize").c_str());
+    m_maxIdleTime = atoi(config.getValue("maxIdleTime").c_str());
+    m_connectTimeOut = atoi(config.getValue("connectionTimeOut").c_str());
 }

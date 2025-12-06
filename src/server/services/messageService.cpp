@@ -70,9 +70,9 @@ void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int useri
     // std::string offlinemsg = resjs.dump();
     json sendjson = buildResponse(resjs, MsgType::MSG_GROUP_CHAT_ACK);
     std::string offlinemsg = sendjson.dump();
-    std::unordered_set<int> userset = m_RelationCache.getAllUserFromGroup(groupid);
+    std::vector<int> uservec = m_GroupCallBack(groupid);
     // 后期需要替换存储方式。小群的时候，采用写扩散方案
-    for (int toid : userset)
+    for (int toid : uservec)
     {
         if (toid == userid)
         {
@@ -109,4 +109,5 @@ void MessageService::handleRedisPublis(std::string key, std::string value)
             info.m_conn->send(value);
         }
     }
+
 }

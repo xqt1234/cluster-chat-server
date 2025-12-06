@@ -8,6 +8,7 @@ public:
 private:
     KickCallBack m_kickcallBack;
     GetConnCallBack m_getConn;
+    GroupCallBack m_GroupCallBack;
 public:
     MessageService();
     ~MessageService() = default;
@@ -22,5 +23,8 @@ public:
     {
         m_getConn = cb;
     }
-    
+    void sestGroupCallBack(const GroupCallBack& cb)
+    {
+        m_GroupCallBack = cb;
+    }
 };

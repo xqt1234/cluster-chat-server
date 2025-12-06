@@ -1,5 +1,5 @@
 #include "groupService.h"
-
+using namespace sw::redis;
 void GroupService::joinGroup(const TcpConnectionPtr &conn, json &js, int userid)
 {
     int groupid = js.value("groupid", -1);
@@ -10,6 +10,7 @@ void GroupService::joinGroup(const TcpConnectionPtr &conn, json &js, int userid)
         return;
     }
     bool res = m_groupdao.addGroup(groupid, userid, "normal");
+    addToRedisGroup(groupid,userid);
     if (!res)
     {
         json jsres = buildErrorResponse({true, ErrType::DB_ERROR, "加入群组失败"});
@@ -17,6 +18,7 @@ void GroupService::joinGroup(const TcpConnectionPtr &conn, json &js, int userid)
         return;
     }
     Group group = m_groupdao.queryGroupByGroupId(groupid);
+    
     json jsres{
         {"msg", "加入群组成功"},
         {"groupid", group.getId()},
@@ -69,4 +71,41 @@ void GroupService::queryGroup(int userid, json &js)
         }
         js["groups"] = groupstr;
     }
+}
+
+void GroupService::initGroupInRedis()
+{
+    
+    Redis& redis = m_redis.getRedis();
+    std::unordered_map<int,std::unordered_set<int>> tmpmaps = m_groupdao.getAllGroupAndUsers();
+    for(auto& map : tmpmaps)
+    {
+        std::string key = "groupset:" + std::to_string(map.first);
+        std::unordered_set<int> tmpset = map.second;
+        if(redis.exists(key) == 0)
+        {
+            redis.sadd(key,tmpset.begin(),tmpset.end());
+        }
+    }
+}
+
+std::vector<int> GroupService::getGroupUsers(int groupid)
+{
+    Redis& redis = m_redis.getRedis();
+    std::string key = "groupset:" + std::to_string(groupid);
+    std::vector<std::string> outvec;
+    redis.smembers(key,std::back_inserter(outvec));
+    std::vector<int> resvec;
+    resvec.reserve(outvec.size());
+    for(auto& str : outvec)
+    {
+        resvec.push_back(atoi(str.c_str()));
+    }
+    return resvec;
+}
+
+void GroupService::addToRedisGroup(int groupid, int userid)
+{
+    std::string key = "groupset:" + std::to_string(groupid);
+    m_redis.getRedis().sadd(key,std::to_string(userid));
 }

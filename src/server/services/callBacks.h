@@ -16,4 +16,5 @@ using GetConnCallBack = std::function<ConnectInfo(int)>;
 using KickCallBack = std::function<void(std::string)>;
 using CheckCallBack = std::function<void(const ConnectInfo&)>;
 using RedisCallBack = std::function<void(std::unordered_map<std::string,std::string>&)>;
+using GroupCallBack = std::function<std::vector<int>(int)>;
 

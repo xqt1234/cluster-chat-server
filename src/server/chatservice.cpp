@@ -22,6 +22,8 @@ ChatService::ChatService()
     m_friendservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin, &m_sessionservice, _1));
     //m_messageservice.setKickCallBack(std::bind(&SessionService::kickuser, &m_sessionservice, _1));
     m_messageservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin, &m_sessionservice, _1));
+    m_messageservice.sestGroupCallBack(std::bind(&GroupService::getGroupUsers,m_groupservice,std::placeholders::_1));
+    m_groupservice.initGroupInRedis();
 }
 
 ChatService::~ChatService()

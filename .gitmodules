@@ -1,0 +1,6 @@
+[submodule "ThirdParty/newmuduo"]
+	path = ThirdParty/newmuduo
+	url = git@github.com:xqt1234/networklibrary.git
+[submodule "ThirdParty/miniRpc"]
+	path = ThirdParty/miniRpc
+	url = git@github.com:xqt1234/miniRpc.git

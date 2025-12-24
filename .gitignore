@@ -9,3 +9,4 @@ src/server/redis/redistest/*
 /.vscode/
 /docs/jsonformat.json
 /bin/*
+/ThirdParty/

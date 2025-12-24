@@ -9,5 +9,6 @@ aux_source_directory(./services SRC_LIST_5)
 include_directories(${PROJECT_SOURCE_DIR}/db)
 include_directories(${PROJECT_SOURCE_DIR}/redis)
 include_directories(${PROJECT_SOURCE_DIR}/services)
+
 add_executable(${PROJECT_NAME} ${SRC_LIST_COMM} ${SRC_LIST_E} ${SRC_LIST_2} ${SRC_LIST_3} ${SRC_LIST_4} ${SRC_LIST_5})
 target_link_libraries(${PROJECT_NAME} newmuduo mysqlcppconn redis++ hiredis ssl crypto pthread)

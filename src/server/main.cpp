@@ -3,7 +3,6 @@
 #include <thread>
 #include <vector>
 #include "connectionPool.h"
-
 #include "userdao.h"
 #include "frienddao.h"
 #include "group.h"
@@ -35,7 +34,7 @@ int main()
     {
         std::cout << "数据库出错，终止程序" << std::endl;
     }
-    Logger::getInstance().setLogLevel(LogLevel::DEBUG);
+    mymuduo::Logger::getInstance().setLogLevel(mymuduo::LogLevel::DEBUG);
     gloop = new EventLoop();
     Config& conf = Config::getInstance();
     std::string ipaddr = conf.getValue("serverip");

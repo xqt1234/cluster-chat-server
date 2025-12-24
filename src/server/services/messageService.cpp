@@ -6,7 +6,7 @@ using json = nlohmann::json;
 
 MessageService::MessageService()
 {
-    m_redis.init_notify_handle(std::bind(&MessageService::handleRedisPublis, this, _1, _2));
+    m_redis.init_notify_handle(std::bind(&MessageService::handleRedisPublis, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)

@@ -1,13 +1,15 @@
 #include "config.h"
 #include <fstream>
-#include "Logger.h"
 #include <iostream>
+// using Logger = mymuduo::Logger;
+// using LogLevel = mymuduo::LogLevel;
 bool Config::loadConfig(std::string filename)
 {
     std::ifstream ss(filename);
     if (!ss.is_open())
     {
-        LOG_INFO("找不到配置文件{}",filename);
+        //LOG_INFO("找不到配置文件{}",filename);
+        std::cout << "找不到配置文件" << filename << std::endl;
         return false;
     }
     std::string line;
@@ -21,7 +23,8 @@ bool Config::loadConfig(std::string filename)
         size_t eq_pos = line.find('=');
         if (eq_pos == std::string::npos)
         {
-            LOG_ERROR("配置行不正确{}");
+            //LOG_ERROR("配置行不正确{}");
+            std::cout << "配置行不正确" << std::endl;
             continue;
         }
         std::string tmpkey = line.substr(0, eq_pos);
@@ -64,7 +67,8 @@ std::string Config::getValue(const std::string &key)
     {
         return it->second;
     }
-    LOG_FATAL("读取配置{}出错", key);
+    std::cout << "读取配置出错" << key << std::endl;
+    //LOG_FATAL("读取配置{}出错", key);
     return "";
 }
 

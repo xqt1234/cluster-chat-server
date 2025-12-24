@@ -3,6 +3,7 @@ project(chatsever)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++20")
 include_directories(${PROJECT_SOURCE_DIR}/ThirdParty/newmuduo/include)
+include_directories(${PROJECT_SOURCE_DIR}/ThirdParty/nlohmann/include)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/src/common)
 include_directories(${PROJECT_SOURCE_DIR}/src/server)

@@ -2,6 +2,7 @@
 #include <functional>
 #include "TcpConnection.h"
 #include <unordered_map>
+using  TcpConnectionPtr = mymuduo::TcpConnectionPtr;
 struct ConnectInfo
 {
     int m_userid = -1;

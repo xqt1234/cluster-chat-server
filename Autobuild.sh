@@ -20,6 +20,9 @@ if ls `pwd`/bin/log/*.log >/dev/null 2>&1;then
     rm  `pwd`/bin/log/*.log
 fi
 
-cd `pwd`/build && cmake .. && make 
+# cd `pwd`/build && cmake .. && make 
 
-cd ..
+# cd ..
+curpath=`pwd`
+cd `pwd`/build && cmake .. && make
+

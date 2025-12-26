@@ -3,3 +3,8 @@ project(client)
 aux_source_directory(. SRC_LIST_C)
 aux_source_directory(../common SRC_LIST_COMM)
 add_executable(${PROJECT_NAME} ${SRC_LIST_COMM} ${SRC_LIST_C})
+
+if(TARGET nlohmann)
+    message(STATUS "✅ Using external nlohmann target")
+endif()
+target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann)

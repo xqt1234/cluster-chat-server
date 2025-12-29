@@ -1,17 +1,18 @@
 cmake_minimum_required(VERSION 3.10)
 project(chatsever)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++20")
-
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++20")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++20 -fPIC -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer")
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/src/common)
 include_directories(${PROJECT_SOURCE_DIR}/src/server)
 include_directories(${PROJECT_SOURCE_DIR}/src/server/model)
 
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 add_subdirectory(ThirdParty)
 # include_directories(${PROJECT_SOURCE_DIR}/ThirdParty/newmuduo/include)
 # include_directories(${PROJECT_SOURCE_DIR}/ThirdParty/nlohmann/include)
 # link_directories(${PROJECT_SOURCE_DIR}/ThirdParty/newmuduo/lib)
 add_subdirectory(src/server)
 add_subdirectory(src/client)
+add_subdirectory(src/rpc)

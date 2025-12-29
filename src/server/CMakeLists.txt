@@ -6,16 +6,12 @@ aux_source_directory(./db SRC_LIST_2)
 aux_source_directory(./model SRC_LIST_3)
 aux_source_directory(./redis SRC_LIST_4)
 aux_source_directory(./services SRC_LIST_5)
-include_directories(${PROJECT_SOURCE_DIR}/db)
-include_directories(${PROJECT_SOURCE_DIR}/redis)
-include_directories(${PROJECT_SOURCE_DIR}/services)
-if(TARGET newmuduo)
-    message(STATUS "✅ Using external newmuduo target")
-else()
-    message(STATUS "⚠️  newmuduo target not found, using local library")
-endif()
-if(TARGET nlohmann)
-    message(STATUS "✅ Using external nlohmann target")
-endif()
+
 add_executable(${PROJECT_NAME} ${SRC_LIST_COMM} ${SRC_LIST_E} ${SRC_LIST_2} ${SRC_LIST_3} ${SRC_LIST_4} ${SRC_LIST_5})
-target_link_libraries(${PROJECT_NAME} nlohmann newmuduo mysqlcppconn redis++ hiredis ssl crypto pthread)
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ./db
+    ./public
+    ./redis
+    ./services
+)
+target_link_libraries(${PROJECT_NAME} minirpc nlohmann newmuduo mysqlcppconn redis++ hiredis ssl crypto pthread)

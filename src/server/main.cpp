@@ -39,6 +39,8 @@ int main()
     Config& conf = Config::getInstance();
     std::string ipaddr = conf.getValue("serverip");
     uint16_t port = atoi(conf.getValue("serverport").c_str());
+    miniRpc::RpcApplication m_application;
+    m_application.init();
     ChatServer m_server(gloop, port, ipaddr);
     m_server.start();
     gloop->loop();

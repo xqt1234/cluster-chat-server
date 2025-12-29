@@ -3,34 +3,43 @@
 #include "userdao.h"
 #include "Logger.h"
 #include "config.h"
+
 AuthService::AuthService()
 {
-    //m_kickchannelname = "kick_" + Config::getInstance().getValue("servername","server01");
-    // LOG_DEBUG("订阅频道：{}",m_kickchannelname);
-    // m_redis.subscribe(m_kickchannelname);
     m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
+}
+void AuthService::setRpcChannel(miniRpc::RpcChannel* channel)
+{
+    m_channel = channel;
 }
 void AuthService::login(const TcpConnectionPtr &conn, json &js, int tmpid)
 {
-    std::string password = js.value("password", "");
-    int userid = js.value("userid", -1);
-    if (password == "" || userid == -1)
-    {
-        json jsres = buildErrorResponse({true, ErrType::USER_NOT_EXIST, "不存在该用户或者密码错误"});
-        conn->send(jsres.dump());
-        return;
-    }
-    User user = m_userdao.queryUser(userid);
-    if (user.getId() != userid || user.getPassWord() != password)
-    {
-        json jsres = buildErrorResponse({true, ErrType::USER_NOT_EXIST, "不存在该用户或者密码错误"});
-        conn->send(jsres.dump());
-        return;
-    }
-    m_CheckCallBack({userid,false,false,conn});
-    m_redis.subscribe("to:" + std::to_string(userid));
-    LOG_DEBUG("订阅频道：{}","to:" + std::to_string(userid));
-    buildLoginInfo(conn, js, user, false);
+    // std::string password = js.value("password", "");
+    // int userid = js.value("userid", -1);
+    // if (password == "" || userid == -1)
+    // {
+    //     json jsres = buildErrorResponse({true, ErrType::USER_NOT_EXIST, "不存在该用户或者密码错误"});
+    //     conn->send(jsres.dump());
+    //     return;
+    // }
+    // User user = m_userdao.queryUser(userid);
+    // if (user.getId() != userid || user.getPassWord() != password)
+    // {
+    //     json jsres = buildErrorResponse({true, ErrType::USER_NOT_EXIST, "不存在该用户或者密码错误"});
+    //     conn->send(jsres.dump());
+    //     return;
+    // }
+    m_channel->callMethodAsync("UserService","login",js.dump(),[&](std::string res){
+        json response = json::parse(res);
+        std::cout << "收到rpcjson:-----------" << res << std::endl;
+        // int userid = js.value("userid", -1);
+        // m_CheckCallBack({userid,false,false,conn});
+        // m_redis.subscribe("to:" + std::to_string(userid));
+        // LOG_DEBUG("订阅频道：{}","to:" + std::to_string(userid));
+        // conn->send(res);
+        //buildLoginInfo(conn, js, user, false);
+    });
+    
 }
 
 void AuthService::LoginByToken(const TcpConnectionPtr &conn, json &js, int userid)

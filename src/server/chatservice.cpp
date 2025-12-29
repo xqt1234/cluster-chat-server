@@ -9,6 +9,7 @@ using namespace std::placeholders;
 using json = nlohmann::json;
 ChatService::ChatService()
 {
+    m_authservcie.setRpcChannel(&m_channl);
     m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN), std::bind(&AuthService::login, &m_authservcie, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_REGISTER), std::bind(&AuthService::registerUser, &m_authservcie, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_PRIVATE_CHAT), std::bind(&MessageService::ChatOne, &m_messageservice, _1, _2, _3)});
@@ -24,6 +25,7 @@ ChatService::ChatService()
     m_messageservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin, &m_sessionservice, _1));
     m_messageservice.sestGroupCallBack(std::bind(&GroupService::getGroupUsers,m_groupservice,std::placeholders::_1));
     m_groupservice.initGroupInRedis();
+    
 }
 
 ChatService::~ChatService()

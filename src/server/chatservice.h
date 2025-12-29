@@ -20,6 +20,7 @@
 #include "groupService.h"
 #include "sessionService.h"
 #include "messageService.h"
+#include "rpcApplication.h"
 using json = nlohmann::json;
 using MsgHandle = std::function<void(const TcpConnectionPtr &conn, json &js,int userid)>;
 class ChatService : public BaseService
@@ -28,6 +29,7 @@ public:
 private:
     std::unordered_map<int, MsgHandle> m_handlemap;
     static const size_t MAX_JSON_LENGTH = 1024 * 1024; // 1MB
+    
 public:
     ChatService(/* args */);
     ~ChatService();
@@ -36,6 +38,7 @@ public:
     void handMessage(const TcpConnectionPtr &conn,json& js);
     void removeConnection(const TcpConnectionPtr &conn);
 private:
+    miniRpc::RpcChannel m_channl;
     AuthService m_authservcie;
     FriendService m_friendservice;
     GroupService m_groupservice;

@@ -40,6 +40,7 @@ bool GroupDAO::createGroup(Group &tgroup, int userid)
             return false;
         }
         conn->commit();
+        delete res;
         return true;
     }
     catch (const std::exception &e)
@@ -115,6 +116,7 @@ Group GroupDAO::queryGroupByGroupId(int groupid)
             tgroup.setName(res->getString("groupname"));
             tgroup.setDesc(res->getString("groupdesc"));
         }
+        delete res;
     }
     catch (const std::exception &e)
     {
@@ -142,6 +144,7 @@ std::unordered_map<int,std::unordered_set<int>> GroupDAO::getAllGroupAndUsers()
             int userid = res->getInt("userid");
             resMap[tgroupid].insert(userid);
         }
+        delete res;
     }
     catch (const std::exception &e)
     {
@@ -175,6 +178,7 @@ std::vector<Group> GroupDAO::queryGroupsByUserId(int userid)
             tgroup.setDesc(res->getString("groupdesc"));
             resvec.push_back(std::move(tgroup));
         }
+        delete res;
     }
     catch (const std::exception &e)
     {

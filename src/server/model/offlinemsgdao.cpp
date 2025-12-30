@@ -19,6 +19,7 @@ std::vector<std::string> OffineMessageDAO::query(int userid)
         {
             vec.push_back(res->getString("message"));
         }
+        delete res;
     }
     catch (const std::exception &e)
     {

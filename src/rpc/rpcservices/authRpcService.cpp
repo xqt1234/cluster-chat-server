@@ -5,6 +5,7 @@
 #include <functional>
 AuthRpcService::AuthRpcService()
 {
+    //m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
     addAsyncMethod("login",[this](const std::string& request,std::function<void(std::string& response)> callback){
         this->login(request,std::move(callback));
     });
@@ -19,7 +20,10 @@ void AuthRpcService::login(const std::string &res, std::function<void(std::strin
     int userid = js.value("userid", -1);
     if (password == "" || userid == -1)
     {
-        json jsres = ResponseBuilder::buildErrorResponse({true, ErrType::USER_NOT_EXIST, "不存在该用户或者密码错误"});
+        json jsres{
+            {"errcode",static_cast<int>(ErrType::USER_NOT_EXIST)},
+            {"errmsg","不存在该用户或者密码错误"}
+        };
         std::string response = jsres.dump();
         callback(response);
         return;
@@ -27,18 +31,30 @@ void AuthRpcService::login(const std::string &res, std::function<void(std::strin
     User user = m_userdao.queryUser(userid);
     if (user.getId() != userid || user.getPassWord() != password)
     {
-        json jsres = ResponseBuilder::buildErrorResponse({true, ErrType::USER_NOT_EXIST, "不存在该用户或者密码错误"});
+        json jsres{
+            {"errcode",static_cast<int>(ErrType::USER_NOT_EXIST)},
+            {"errmsg","不存在该用户或者密码错误"}
+        };
         std::string response = jsres.dump();
         callback(response);
         return;
     }
-    std::string response = std::move(buildLoginInfo(js, user, false));
+    json jsres;
+    json jsdata;
+    jsres["errcode"]= static_cast<int>(ErrType::SUCCESS);
+    buildLoginInfo(js,jsdata, user, false);
+    jsres["data"] = jsdata;
+    std::string response = jsres.dump();
+    std::cout <<"buildLoginInfo____" << response << std::endl;
     callback(response);
 }
-std::string AuthRpcService::buildLoginInfo(json &js, User &user, bool loginbytoken)
+void AuthRpcService::tokenLogin(const std::string &res, std::function<void(std::string &response)> callback)
+{
+
+}
+void AuthRpcService::buildLoginInfo(json &js, json &resjs, User &user, bool loginbytoken)
 {
     int userid = user.getId();
-    json resjs;
     json userinfo{
         {"userid", user.getId()},
         {"username", user.getUserName()}};
@@ -90,8 +106,12 @@ std::string AuthRpcService::buildLoginInfo(json &js, User &user, bool loginbytok
             LOG_ERROR("{}", e.what());
         }
     }
+    if (!loginbytoken)
+    {
+        std::string devicename = js.value("device", "unknown");
+        // resjs["token"] = m_tokenManager->generateToken(userid, devicename);
+    }
     resjs["offlinemsg"] = offline_array;
-    return resjs.dump();
 }
 
 // 检查token，如果当前用户当前设备，有token记录，并且可用，返回。没有就生成。

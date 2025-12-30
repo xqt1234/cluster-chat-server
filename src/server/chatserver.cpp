@@ -43,6 +43,7 @@ void ChatServer::onMessage(const TcpConnectionPtr &conn, mymuduo::Buffer *buf)
 {
     std::string msg = buf->readAllAsString();
     json js;
+    std::cout << "收到消息" << std::endl;
     ChatService::ValidResult res = m_service.checkValid(msg, js);
     if (!res.success)
     {

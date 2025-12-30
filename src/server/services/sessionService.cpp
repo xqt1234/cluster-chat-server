@@ -193,8 +193,8 @@ void SessionService::checkAlive()
 
 void SessionService::updateAliveTime(int userid)
 {
+    std::cout << "收到心跳信息" << std::endl;
     m_clientsMap[userid].m_lastheartTime = getCurrentTimeMillis();
-    ;
 }
 
 void SessionService::removeAll(std::vector<int> &removeVec)

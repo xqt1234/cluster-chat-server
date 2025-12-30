@@ -26,6 +26,7 @@ std::vector<User> FriendDAO::query(int id)
                 user.setUserName(res->getString("username"));
                 vec.emplace_back(std::move(user));
             }
+            delete res;
         }
     }
     catch (const std::exception &e)
@@ -88,6 +89,7 @@ bool FriendDAO::isFriend(int userid, int friendid)
         {
             return true;
         }
+        delete res;
         return false;
         /* code */
     }

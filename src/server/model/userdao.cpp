@@ -23,8 +23,10 @@ bool UserDAO::insertUser(User &user)
         {
             int userid = res->getInt(1);
             user.setId(userid); // 回写到对象中
+            delete res;
             return true;
         }
+        delete res;
     }
     catch (const std::exception &e)
     {
@@ -53,8 +55,11 @@ User UserDAO::queryUser(int id)
             user.setUserName(res->getString("username"));
             user.setPassWord(res->getString("password"));
             // 释放结果集后再返回
+            delete res;
             return user;
         }
+        delete res;
+        
     }
     catch (const std::exception &e)
     {

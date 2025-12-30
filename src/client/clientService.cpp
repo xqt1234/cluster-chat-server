@@ -329,6 +329,7 @@ void ClientService::sendHeart()
     {
         if (getCurrentTimeMillis() - m_lastSendTime > 5 * 1000)
         {
+            std::cout << "发送心跳" << std::endl;
             json js;
             json sendjs = buildRequest(js, MsgType::MSG_HEARTBEAT);
             m_clientNet.send(sendjs.dump());

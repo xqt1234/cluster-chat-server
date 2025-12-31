@@ -11,7 +11,7 @@ private:
 public:
     FriendService();
     ~FriendService() = default;
-    void addFriend(const TcpConnectionPtr &conn, json &js,int userid);
+    void addFriend(const TcpConnectionPtr &conn,const json &js,int userid);
     void setGetConnCallBack(const GetConnCallBack& cb)
     {
         m_getConn = cb;

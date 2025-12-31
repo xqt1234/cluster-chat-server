@@ -12,8 +12,8 @@ private:
 public:
     MessageService();
     ~MessageService() = default;
-    void ChatOne(const TcpConnectionPtr &conn, json &js,int userid);
-    void ChatGroup(const TcpConnectionPtr &conn, json &js,int userid);
+    void ChatOne(const TcpConnectionPtr &conn,const json &js,int userid);
+    void ChatGroup(const TcpConnectionPtr &conn,const json &js,int userid);
     void handleRedisPublis(std::string, std::string);
     void setKickCallBack(const KickCallBack& cb)
     {

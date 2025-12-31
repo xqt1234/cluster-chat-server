@@ -1,6 +1,6 @@
 #include "groupService.h"
 using namespace sw::redis;
-void GroupService::joinGroup(const TcpConnectionPtr &conn, json &js, int userid)
+void GroupService::joinGroup(const TcpConnectionPtr &conn,const json &js, int userid)
 {
     int groupid = js.value("groupid", -1);
     if (groupid == -1)
@@ -28,7 +28,7 @@ void GroupService::joinGroup(const TcpConnectionPtr &conn, json &js, int userid)
     conn->send(sendf.dump());
 }
 
-void GroupService::createGroup(const TcpConnectionPtr &conn, json &js, int userid)
+void GroupService::createGroup(const TcpConnectionPtr &conn,const json &js, int userid)
 {
     std::string groupname = js.value("groupname", "");
     std::string groupdesc = js.value("groupdesc", "");

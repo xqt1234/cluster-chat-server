@@ -137,6 +137,7 @@ ClientService::ValidResult ClientService::sendlogin(std::string &str)
     if (m_clientNet.send(str))
     {
         std::string resmsg = m_clientNet.recvmsg();
+        std::cout << resmsg << std::endl;
         json jsres;
         ValidResult res = checkValid(resmsg, jsres);
         if (res.success)
@@ -215,6 +216,11 @@ void ClientService::choiceUserToken(int userid)
 void ClientService::removeUserToken()
 {
     Token::getInstance().clearToken(m_currentUser.getId());
+}
+
+std::string ClientService::getToken()
+{
+    return m_token;
 }
 
 std::unordered_map<std::string, Func> &ClientService::getHandleMap()
@@ -318,7 +324,7 @@ json ClientService::buildRequest(json &obj, MsgType type)
     json response = {
         {"msgid", static_cast<int>(type)},
         {"version", "1.0"},
-        {"token", m_token},
+        // {"token", m_token},
         {"data", std::move(obj)}};
     return response;
 }
@@ -329,7 +335,7 @@ void ClientService::sendHeart()
     {
         if (getCurrentTimeMillis() - m_lastSendTime > 5 * 1000)
         {
-            std::cout << "发送心跳" << std::endl;
+            // std::cout << "发送心跳" << std::endl;
             json js;
             json sendjs = buildRequest(js, MsgType::MSG_HEARTBEAT);
             m_clientNet.send(sendjs.dump());

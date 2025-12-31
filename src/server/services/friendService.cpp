@@ -10,7 +10,7 @@ FriendService::FriendService()
 {
     m_redis.addCommand("addfriend",std::bind(&FriendService::addFriendToLocal,this,std::placeholders::_1));
 }
-void FriendService::addFriend(const TcpConnectionPtr &conn, json &js, int userid)
+void FriendService::addFriend(const TcpConnectionPtr &conn,const json &js, int userid)
 {
     int friendid = js.value("friendid", -1);
     if (userid == -1 || friendid == -1)

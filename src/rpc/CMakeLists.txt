@@ -12,13 +12,14 @@ aux_source_directory(../server/public SRC_LIST_6)
 # include_directories(${PROJECT_SOURCE_DIR}/redis)
 
 # include_directories(${PROJECT_SOURCE_DIR}/services)
-add_executable(${PROJECT_NAME} ${SRC_LIST_COMM} ${SRC_LIST_E} ${SRC_LIST_2} ${SRC_LIST_3} ${SRC_LIST_4} ${SRC_LIST_5} ${SRC_LIST_6})
+add_executable(${PROJECT_NAME} ${SRC_LIST_COMM} ${SRC_LIST_E} ${SRC_LIST_2} ${SRC_LIST_3} ${SRC_LIST_4} ${SRC_LIST_5} ${SRC_LIST_6} ${SRC_LIST_7})
 target_include_directories(${PROJECT_NAME} PRIVATE
     ../server/db
     ../server/model
     ../server/public
-    ./
+    ../server/redis
     ./rpcservices
     ../server/public
+    ./
 )
 target_link_libraries(${PROJECT_NAME} minirpc nlohmann newmuduo mysqlcppconn redis++ hiredis ssl crypto pthread)

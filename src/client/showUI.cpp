@@ -55,10 +55,11 @@ int showUI::showStart()
 {
     // 1、直接用token登录，返回token不存在或者过期，重新登录
     int userid = inputInt("请选择输入登录的用户");
-    json loginjs{
-        {"device","pc"}
-    };
     m_service.choiceUserToken(userid);
+    json loginjs{
+        {"device","pc"},
+        {"token",m_service.getToken()}
+    };
     json sendjs = m_service.buildRequest(loginjs,MsgType::MSG_LOGIN_BY_TOKEN);
     std::string sendstr = sendjs.dump();
     ClientService::ValidResult ret = m_service.sendlogin(sendstr);

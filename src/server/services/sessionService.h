@@ -10,7 +10,7 @@ public:
     using AddFriendCallBack = std::function<void(int,int)>;
 private:
     std::unordered_map<int, struct ConnectInfo> m_clientsMap;
-    std::unordered_map<TcpConnectionPtr, int> m_clientsMapPtr;
+    std::unordered_map<int64_t, int> m_clientsMapPtr;
     std::mutex m_clientsmapMtx;
     std::atomic<bool> m_stop{false};
     std::thread m_aliveThread;
@@ -23,9 +23,12 @@ public:
     void addConnection(const ConnectInfo& info);
     void kickuser(std::unordered_map<std::string,std::string>& paramMap);
     void checkAndKickLogin(const ConnectInfo& info);
+    /** 检查是否已登录本机 */
+    int checkLogin(TcpConnectionPtr info);
+    /** 检查是否在整个服务器集群登录过 */
     ConnectInfo checkHasLogin(int userid);
     void checkAlive();
-    void updateAliveTime(int userid);
+    void updateAliveTime(const TcpConnectionPtr& m_conn,const json& js,int userid);
     void setAddFriendCallBack(const AddFriendCallBack& cb)
     {
         m_AddFriendCallBack = cb;

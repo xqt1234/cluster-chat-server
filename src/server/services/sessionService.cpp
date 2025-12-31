@@ -10,7 +10,7 @@ using ItemStream = std::vector<Item>;
 SessionService::SessionService()
 {
     m_servername = Config::getInstance().getValue("servername");
-    m_redis.addCommand("kickuser",std::bind(&SessionService::kickuser,this,std::placeholders::_1));
+    m_redis.addCommand("kickuser", std::bind(&SessionService::kickuser, this, std::placeholders::_1));
     m_aliveThread = std::thread(std::bind(&SessionService::checkAlive, this));
 }
 SessionService::~SessionService()
@@ -29,11 +29,11 @@ bool SessionService::removeConnection(const ConnectInfo &info, bool rstate)
     if (info.m_conn != nullptr)
     {
         std::lock_guard<std::mutex> lock(m_clientsmapMtx);
-        auto it = m_clientsMapPtr.find(info.m_conn);
+        auto it = m_clientsMapPtr.find(info.m_conn->getConnId());
         if (it != m_clientsMapPtr.end())
         {
             userid = it->second;
-            m_clientsMapPtr.erase(info.m_conn);
+            m_clientsMapPtr.erase(info.m_conn->getConnId());
             m_clientsMap.erase(userid);
             info.m_conn->shutdown();
             res = true;
@@ -52,7 +52,7 @@ bool SessionService::removeConnection(const ConnectInfo &info, bool rstate)
             }
             userid = info.m_userid;
             auto conn = it->second.m_conn;
-            m_clientsMapPtr.erase(conn);
+            m_clientsMapPtr.erase(conn->getConnId());
             m_clientsMap.erase(it);
             conn->shutdown();
             res = true;
@@ -70,10 +70,15 @@ bool SessionService::removeConnection(const ConnectInfo &info, bool rstate)
 
 void SessionService::addConnection(const ConnectInfo &info)
 {
+    if(info.m_userid == -1)
+    {
+        return;
+    }
+    std::cout << "添加用户:" << info.m_conn->getConnId() << std::endl;
     std::lock_guard<std::mutex> lock(m_clientsmapMtx);
     m_clientsMap[info.m_userid] = info;
     m_clientsMap[info.m_userid].m_lastheartTime = getCurrentTimeMillis();
-    m_clientsMapPtr[info.m_conn] = info.m_userid;
+    m_clientsMapPtr[info.m_conn->getConnId()] = info.m_userid;
 }
 
 void SessionService::checkAndKickLogin(const ConnectInfo &info)
@@ -85,8 +90,9 @@ void SessionService::checkAndKickLogin(const ConnectInfo &info)
     long long newVersion = redis.incr("newVersion");
     // 拼接，删除的时候，验证，如果是该版本，就删除
     std::string valuestr = m_servername + ":" + std::to_string(newVersion);
-    //std::cout << "本次登录 userid：" << userid << "新建的版本号:" << newVersion << "服务名称是" << m_servername << std::endl;
-    // 本地有连接就删除
+    // std::cout << "本次登录 userid：" << userid << "新建的版本号:" << newVersion << "服务名称是" << m_servername << std::endl;
+    //  本地有连接就删除
+
     removeConnection({userid, false, false, nullptr, -1});
 
     auto resultvalue = redis.getset(keyname, valuestr);
@@ -114,11 +120,22 @@ void SessionService::checkAndKickLogin(const ConnectInfo &info)
     addConnection({userid, false, false, info.m_conn, newVersion});
 }
 
-void SessionService::kickuser(std::unordered_map<std::string,std::string>& paramMap)
+int SessionService::checkLogin(TcpConnectionPtr conn)
+{
+    auto it = m_clientsMapPtr.find(conn->getConnId());
+    if (it != m_clientsMapPtr.end())
+    {
+        // 返回userid
+        return it->second;
+    }
+    return -1;
+}
+
+void SessionService::kickuser(std::unordered_map<std::string, std::string> &paramMap)
 {
     int userid = atoi(paramMap["userid"].c_str());
     long long versionid = atol(paramMap["version"].c_str());
-    //std::cout << "准备踢人版本号是：" << versionid << std::endl;
+    // std::cout << "准备踢人版本号是：" << versionid << std::endl;
     bool res = removeConnection({userid, false, false, nullptr, versionid});
     std::string userchannal = "to:" + std::to_string(userid);
     LOG_DEBUG("踢掉{},取消订阅{}", userid, userchannal);
@@ -129,7 +146,7 @@ void SessionService::kickuser(std::unordered_map<std::string,std::string>& param
     }
     else
     {
-        //std::cout << "本地没有找到该用户" << std::to_string(userid) << std::endl;
+        // std::cout << "本地没有找到该用户" << std::to_string(userid) << std::endl;
     }
 }
 
@@ -149,8 +166,8 @@ ConnectInfo SessionService::checkHasLogin(int userid)
     if (resultvalue.has_value())
     {
         int index = resultvalue.value().find(":");
-        std::string servername = resultvalue.value().substr(0,index);
-        return {userid, true, false, nullptr,-1,-1,servername};
+        std::string servername = resultvalue.value().substr(0, index);
+        return {userid, true, false, nullptr, -1, -1, servername};
     }
     return {userid, false, false, nullptr};
 }
@@ -163,13 +180,18 @@ void SessionService::checkAlive()
     {
         int64_t currentTime = getCurrentTimeMillis();
         count++;
-        for (auto it = m_clientsMap.begin(); it != m_clientsMap.end(); ++it)
         {
-            if (currentTime - it->second.m_lastheartTime > 20 * 1000)
+            std::lock_guard<std::mutex> lock(m_clientsmapMtx);
+            for (auto it = m_clientsMap.begin(); it != m_clientsMap.end(); ++it)
             {
-                kickVec.push_back(it->first);
+                // std::cout << "上次时间：" << it->second.m_lastheartTime << std::endl;
+                if (currentTime - it->second.m_lastheartTime > 20 * 1000)
+                {
+                    kickVec.push_back(it->first);
+                }
             }
         }
+
         if (!kickVec.empty())
         {
             removeAll(kickVec);
@@ -183,7 +205,7 @@ void SessionService::checkAlive()
             }
             kickVec.clear();
         }
-        if(count % 20 == 0)
+        if (count % 20 == 0)
         {
             m_redis.getRedis().xtrim("cmds", 1000, true);
         }
@@ -191,9 +213,9 @@ void SessionService::checkAlive()
     }
 }
 
-void SessionService::updateAliveTime(int userid)
+void SessionService::updateAliveTime(const TcpConnectionPtr &m_conn, const json &js, int userid)
 {
-    std::cout << "收到心跳信息" << std::endl;
+    // std::cout << "收到心跳信息" << std::endl;
     m_clientsMap[userid].m_lastheartTime = getCurrentTimeMillis();
 }
 
@@ -206,7 +228,7 @@ void SessionService::removeAll(std::vector<int> &removeVec)
         if (it != m_clientsMap.end())
         {
             auto conn = it->second.m_conn;
-            m_clientsMapPtr.erase(conn);
+            m_clientsMapPtr.erase(conn->getConnId());
             m_clientsMap.erase(it);
             if (conn && conn->isConnected())
             {

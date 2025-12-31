@@ -8,8 +8,8 @@ private:
 public:
     GroupService(/* args */) = default;
     ~GroupService() = default;
-    void joinGroup(const TcpConnectionPtr &conn, json &js,int userid);
-    void createGroup(const TcpConnectionPtr &conn, json &js,int userid);
+    void joinGroup(const TcpConnectionPtr &conn,const json &js,int userid);
+    void createGroup(const TcpConnectionPtr &conn,const json &js,int userid);
     void queryGroup(int userid, json &js);
     void initGroupInRedis();
     std::vector<int> getGroupUsers(int groupid);

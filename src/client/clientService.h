@@ -57,6 +57,7 @@ public:
     // ====== Token相关 =========
     void choiceUserToken(int userid);
     void removeUserToken();
+    std::string getToken();
 
     // ====== 功能服务相关 ========
     bool handleService(std::string &str);

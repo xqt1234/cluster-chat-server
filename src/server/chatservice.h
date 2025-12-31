@@ -12,9 +12,7 @@
 #include <unordered_map>
 #include <mutex>
 #include "redisTool.h"
-#include "tokenManager.h"
 #include <unordered_set>
-#include "baseservice.h"
 #include "authService.h"
 #include "friendService.h"
 #include "groupService.h"
@@ -22,7 +20,7 @@
 #include "messageService.h"
 #include "rpcApplication.h"
 using json = nlohmann::json;
-using MsgHandle = std::function<void(const TcpConnectionPtr &conn, json &js,int userid)>;
+using MsgHandle = std::function<void(const TcpConnectionPtr &conn,const json &js,int userid)>;
 class ChatService : public BaseService
 {
 public:

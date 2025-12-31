@@ -11,21 +11,21 @@ ChatService::ChatService()
 {
     m_authservcie.setRpcChannel(&m_channl);
     m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN), std::bind(&AuthService::login, &m_authservcie, _1, _2, _3)});
-    m_handlemap.insert({static_cast<int>(MsgType::MSG_REGISTER), std::bind(&AuthService::registerUser, &m_authservcie, _1, _2, _3)});
+    // m_handlemap.insert({static_cast<int>(MsgType::MSG_REGISTER), std::bind(&AuthService::registerUser, &m_authservcie, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_PRIVATE_CHAT), std::bind(&MessageService::ChatOne, &m_messageservice, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_ADD_FRIEND), std::bind(&FriendService::addFriend, &m_friendservice, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_CREATE_GROUP), std::bind(&GroupService::createGroup, &m_groupservice, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_JOIN_GROUP), std::bind(&GroupService::joinGroup, &m_groupservice, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN_BY_TOKEN), std::bind(&AuthService::LoginByToken, &m_authservcie, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_GROUP_CHAT), std::bind(&MessageService::ChatGroup, &m_messageservice, _1, _2, _3)});
+    m_handlemap.insert({static_cast<int>(MsgType::MSG_HEARTBEAT), std::bind(&SessionService::updateAliveTime, &m_sessionservice, _1, _2, _3)});
     // m_handlemap.insert({static_cast<int>(MsgType::MSG_HEARTBEAT), std::bind(&SessionService::updateAliveTime, &m_sessionservice, _1, _2, _3)});
     m_authservcie.setCheckCallBack(std::bind(&SessionService::checkAndKickLogin, &m_sessionservice, _1));
     m_friendservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin, &m_sessionservice, _1));
-    //m_messageservice.setKickCallBack(std::bind(&SessionService::kickuser, &m_sessionservice, _1));
+    // m_messageservice.setKickCallBack(std::bind(&SessionService::kickuser, &m_sessionservice, _1));
     m_messageservice.setGetConnCallBack(std::bind(&SessionService::checkHasLogin, &m_sessionservice, _1));
-    m_messageservice.sestGroupCallBack(std::bind(&GroupService::getGroupUsers,m_groupservice,std::placeholders::_1));
+    m_messageservice.sestGroupCallBack(std::bind(&GroupService::getGroupUsers, m_groupservice, std::placeholders::_1));
     m_groupservice.initGroupInRedis();
-    
 }
 
 ChatService::~ChatService()
@@ -37,7 +37,7 @@ MsgHandle ChatService::getHandler(int msgid)
     auto it = m_handlemap.find(msgid);
     if (it == m_handlemap.end())
     {
-        auto func = [this](const TcpConnectionPtr &conn, json &js, int userid)
+        auto func = [this](const TcpConnectionPtr &conn, const json &js, int userid)
         {
             json jsres = buildErrorResponse({true, ErrType::PARAM_TYPE_ERROR, "参数类型错误"});
             conn->send(jsres.dump());
@@ -75,12 +75,12 @@ ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
     {
         return {true, ErrType::SUCCESS, "登录，通过验证，不检验载荷"};
     }
-    if (data["msgid"] != MsgType::MSG_LOGIN &&
-        data["msgid"] != MsgType::MSG_REGISTER &&
-        data.value("token", "") == "")
-    {
-        return {false, ErrType::TOKEN_EXPIRED, "没有token消息"};
-    }
+    // if (data["msgid"] != MsgType::MSG_LOGIN &&
+    //     data["msgid"] != MsgType::MSG_REGISTER &&
+    //     data.value("token", "") == "")
+    // {
+    //     return {false, ErrType::TOKEN_EXPIRED, "没有token消息"};
+    // }
     if (!data.contains("data") || !data["data"].is_object())
     {
         return {false, ErrType::MESSAGE_EMPTY, "没有有效数据"};
@@ -91,30 +91,32 @@ ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
 void ChatService::handMessage(const TcpConnectionPtr &conn, json &js)
 {
     int msgid = js["msgid"];
-    std::string token = js["token"];
-    int userid = m_authservcie.verifyToken(token);
-    if (userid != -1 ||
-         (msgid == static_cast<int>(MsgType::MSG_LOGIN)) || 
-         (msgid == static_cast<int>(MsgType::MSG_REGISTER)))
+    // 登录注册不检查登录状态
+    if ((msgid == static_cast<int>(MsgType::MSG_LOGIN)) ||
+        (msgid == static_cast<int>(MsgType::MSG_REGISTER))||
+        (msgid == static_cast<int>(MsgType::MSG_LOGIN_BY_TOKEN)))
     {
-        if (msgid != static_cast<int>(MsgType::MSG_HEARTBEAT))
-        {
-            MsgHandle handle = getHandler(msgid);
-            handle(conn, js["data"], userid);
-        }
-        if (userid != -1)
-        {
-            m_sessionservice.updateAliveTime(userid);
-        }
+        MsgHandle handle = getHandler(msgid);
+        handle(conn, js["data"], -1);
+        return;
     }
-    else
+    int userid = m_sessionservice.checkLogin(conn);
+    if (userid == -1)
     {
-        json jsres = buildErrorResponse({true, ErrType::TOKEN_EXPIRED, "token过期"});
+        json jsres = buildErrorResponse({true, ErrType::NOT_LOGGED_IN, "未登录"});
         conn->send(jsres.dump());
+    }
+    MsgHandle handle = getHandler(msgid);
+    if (msgid == static_cast<int>(MsgType::MSG_HEARTBEAT))
+    {
+        handle(conn,nullptr, userid);
+    }else
+    {
+        handle(conn, js["data"], userid);
     }
 }
 
 void ChatService::removeConnection(const TcpConnectionPtr &conn)
 {
-    m_sessionservice.removeConnection({-1, true, false, conn,true});
+    m_sessionservice.removeConnection({-1, true, false, conn, true});
 }

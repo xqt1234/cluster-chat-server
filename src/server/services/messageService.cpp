@@ -9,7 +9,7 @@ MessageService::MessageService()
     m_redis.init_notify_handle(std::bind(&MessageService::handleRedisPublis, this, std::placeholders::_1, std::placeholders::_2));
 }
 
-void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
+void MessageService::ChatOne(const TcpConnectionPtr &conn,const json &js, int userid)
 {
     int toid = js.value("toid", -1);
     if (userid == -1 || toid == -1)
@@ -52,7 +52,7 @@ void MessageService::ChatOne(const TcpConnectionPtr &conn, json &js, int userid)
     }
 }
 
-void MessageService::ChatGroup(const TcpConnectionPtr &conn, json &js, int userid)
+void MessageService::ChatGroup(const TcpConnectionPtr &conn,const json &js, int userid)
 {
     int groupid = js.value("groupid", -1);
     std::string str = js.value("msg", "");

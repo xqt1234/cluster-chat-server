@@ -48,7 +48,7 @@ MsgHandle ChatService::getHandler(int msgid)
     return it->second;
 }
 
-ChatService::ValidResult ChatService::checkValid(std::string &src, json &data)
+ChatService::ValidResult ChatService::checkValid(const std::string &src, json &data)
 {
     if (src.empty())
     {

@@ -74,7 +74,7 @@ void SessionService::addConnection(const ConnectInfo &info)
     {
         return;
     }
-    std::cout << "添加用户:" << info.m_conn->getConnId() << std::endl;
+    // std::cout << "添加用户:" << info.m_conn->getConnId() << std::endl;
     std::lock_guard<std::mutex> lock(m_clientsmapMtx);
     m_clientsMap[info.m_userid] = info;
     m_clientsMap[info.m_userid].m_lastheartTime = getCurrentTimeMillis();
@@ -99,7 +99,6 @@ void SessionService::checkAndKickLogin(const ConnectInfo &info)
     if (resultvalue.has_value())
     {
         std::string restr = resultvalue.value();
-        std::cout << restr << std::endl;
         int index = restr.find(":");
         std::string kickchannalname = restr.substr(0, index);
         std::string lastVersion = restr.substr(index + 1);

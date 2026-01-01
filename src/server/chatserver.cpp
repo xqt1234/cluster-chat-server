@@ -2,6 +2,7 @@
 #include "json.hpp"
 #include "Logger.h"
 #include "chatservice.h"
+#include "protoBuilder.h"
 using json = nlohmann::json;
 ChatServer::ChatServer(EventLoop *loop, uint16_t port, std::string ipaddr)
     : m_loop(loop), m_server(new mymuduo::TcpServer(loop, port, ipaddr))
@@ -41,15 +42,18 @@ void ChatServer::setThreadNum(int num)
 
 void ChatServer::onMessage(const TcpConnectionPtr &conn, mymuduo::Buffer *buf)
 {
-    std::string msg = buf->readAllAsString();
-    json js;
-    // std::cout << "收到消息" << msg << std::endl;
-    ChatService::ValidResult res = m_service.checkValid(msg, js);
-    if (!res.success)
-    {
-        js = m_service.buildErrorResponse(std::move(res));
-        conn->send(js.dump());
-        return;
-    }
-    m_service.handMessage(conn,js);
+    // std::string msg = buf->readAllAsString();
+    ProtoBuilder::deCodeResponse(buf,[this,conn](const std::string& msg){
+        json js;
+        // std::cout << "收到消息" << msg << std::endl;
+        ChatService::ValidResult res = m_service.checkValid(msg, js);
+        if (!res.success)
+        {
+            js = m_service.buildErrorResponse(std::move(res));
+            conn->send(js.dump());
+            return;
+        }
+        m_service.handMessage(conn,js);
+    });
+    
 }

@@ -32,7 +32,7 @@ public:
     ChatService(/* args */);
     ~ChatService();
     MsgHandle getHandler(int msgid);
-    ValidResult checkValid(std::string& str,json& data);
+    ValidResult checkValid(const std::string& str,json& data);
     void handMessage(const TcpConnectionPtr &conn,json& js);
     void removeConnection(const TcpConnectionPtr &conn);
 private:

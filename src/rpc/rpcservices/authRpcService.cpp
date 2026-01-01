@@ -48,13 +48,11 @@ void AuthRpcService::login(const std::string &res, std::function<void(std::strin
     buildLoginInfo(js,jsdata, user, false);
     jsres["data"] = jsdata;
     std::string response = jsres.dump();
-    std::cout <<"buildLoginInfo____" << response << std::endl;
     callback(response);
 }
 void AuthRpcService::tokenLogin(const std::string &res, std::function<void(std::string &response)> callback)
 {
     json js = json::parse(res);
-    std::cout << "tokenLogin:----" << res << std::endl;
     std::string token = js.value("token","");
     if(token == "")
     {
@@ -84,7 +82,6 @@ void AuthRpcService::tokenLogin(const std::string &res, std::function<void(std::
     buildLoginInfo(js,jsdata, user, true);
     jsres["data"] = jsdata;
     std::string response = jsres.dump();
-    std::cout <<"buildLoginInfo____" << response << std::endl;
     callback(response);
 }
 void AuthRpcService::buildLoginInfo(json &js, json &resjs, User &user, bool isbytoken)

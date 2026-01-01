@@ -9,6 +9,7 @@
 #include <cstring>
 #include <iostream>
 ClientNet::ClientNet()
+    :m_recvBuffer(std::make_unique<Buffer>())
 {
     init();
 }
@@ -72,7 +73,6 @@ std::string ClientNet::recvmsg()
     }
     const char *data = m_recvBuffer->peek();
     int len = m_recvBuffer->readableBytes();
-    std::cout << "收到长度" << len << std::endl;
     while (len > sizeof(RpcMsgHeader))
     {
         RpcMsgHeader rpchead;

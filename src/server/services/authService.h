@@ -20,7 +20,7 @@ public:
     void setRpcChannel(miniRpc::RpcChannel* channel);
     void login(const TcpConnectionPtr &conn,const json &js, int tmpid);
     void LoginByToken(const TcpConnectionPtr &conn,const json &js,int userid);
-    // void registerUser(const TcpConnectionPtr &conn,const json &js, int tmpid);
+    void registUser(const TcpConnectionPtr &conn,const json &js, int tmpid);
     // int verifyToken(std::string &str);
     // void buildLoginInfo(const TcpConnectionPtr &conn,const json &js,User& user,bool loginbytoken);
     void setCheckCallBack(const CheckCallBack& cb)

@@ -6,15 +6,15 @@
 AuthRpcService::AuthRpcService()
 {
     m_tokenManager = std::make_unique<TokenManager>(m_redis.getRedis());
-    addAsyncMethod("Login",[this](const std::string& request,std::function<void(std::string& response)> callback){
-        this->login(request,std::move(callback));
-    });
-    addAsyncMethod("LoginByToken",[this](const std::string& request,std::function<void(std::string& response)> callback){
-        this->tokenLogin(request,std::move(callback));
-    });
+    addAsyncMethod("Login", [this](const std::string &request, std::function<void(std::string & response)> callback)
+                   { this->login(request, std::move(callback)); });
+    addAsyncMethod("LoginByToken", [this](const std::string &request, std::function<void(std::string & response)> callback)
+                   { this->tokenLogin(request, std::move(callback)); });
+    addAsyncMethod("RegistUser", [this](const std::string &request, std::function<void(std::string & response)> callback)
+                   { this->registUser(request, std::move(callback)); });
 }
-//using RpcAsyncMethod = std::function<void(const std::string &request, std::function<void(std::string &response)> callback)>;
-//void RpcService::addAsyncMethod(const std::string &name, RpcAsyncMethod method)
+// using RpcAsyncMethod = std::function<void(const std::string &request, std::function<void(std::string &response)> callback)>;
+// void RpcService::addAsyncMethod(const std::string &name, RpcAsyncMethod method)
 void AuthRpcService::login(const std::string &res, std::function<void(std::string &response)> callback)
 {
     json js = json::parse(res);
@@ -24,9 +24,8 @@ void AuthRpcService::login(const std::string &res, std::function<void(std::strin
     if (password == "" || userid == -1)
     {
         json jsres{
-            {"errcode",static_cast<int>(ErrType::USER_NOT_EXIST)},
-            {"errmsg","不存在该用户或者密码错误"}
-        };
+            {"errcode", static_cast<int>(ErrType::USER_NOT_EXIST)},
+            {"errmsg", "不存在该用户或者密码错误"}};
         std::string response = jsres.dump();
         callback(response);
         return;
@@ -35,42 +34,40 @@ void AuthRpcService::login(const std::string &res, std::function<void(std::strin
     if (user.getId() != userid || user.getPassWord() != password)
     {
         json jsres{
-            {"errcode",static_cast<int>(ErrType::USER_NOT_EXIST)},
-            {"errmsg","不存在该用户或者密码错误"}
-        };
+            {"errcode", static_cast<int>(ErrType::USER_NOT_EXIST)},
+            {"errmsg", "不存在该用户或者密码错误"}};
         std::string response = jsres.dump();
         callback(response);
         return;
     }
     json jsres;
     json jsdata;
-    jsres["errcode"]= static_cast<int>(ErrType::SUCCESS);
-    buildLoginInfo(js,jsdata, user, false);
+    jsres["errcode"] = static_cast<int>(ErrType::SUCCESS);
+    buildLoginInfo(js, jsdata, user, false);
     jsres["data"] = jsdata;
     std::string response = jsres.dump();
     callback(response);
 }
 void AuthRpcService::tokenLogin(const std::string &res, std::function<void(std::string &response)> callback)
 {
+    std::cout << "调用rpc的tokenLogin方法" << res << std::endl;
     json js = json::parse(res);
-    std::string token = js.value("token","");
-    if(token == "")
+    std::string token = js.value("token", "");
+    if (token == "")
     {
         json jsres{
-            {"errcode",static_cast<int>(ErrType::MISSING_PARAM)},
-            {"errmsg","不存在该用户或者密码错误"}
-        };
+            {"errcode", static_cast<int>(ErrType::MISSING_PARAM)},
+            {"errmsg", "不存在该用户或者密码错误"}};
         std::string response = jsres.dump();
         callback(response);
         return;
     }
     int userid = verifyToken(token);
-    if(userid == -1)
+    if (userid == -1)
     {
         json jsres{
-            {"errcode",static_cast<int>(ErrType::TOKEN_EXPIRED)},
-            {"errmsg","token过期"}
-        };
+            {"errcode", static_cast<int>(ErrType::TOKEN_EXPIRED)},
+            {"errmsg", "token过期"}};
         std::string response = jsres.dump();
         callback(response);
         return;
@@ -78,9 +75,37 @@ void AuthRpcService::tokenLogin(const std::string &res, std::function<void(std::
     json jsres;
     json jsdata;
     User user = m_userdao.queryUser(userid);
-    jsres["errcode"]= static_cast<int>(ErrType::SUCCESS);
-    buildLoginInfo(js,jsdata, user, true);
+    jsres["errcode"] = static_cast<int>(ErrType::SUCCESS);
+    buildLoginInfo(js, jsdata, user, true);
     jsres["data"] = jsdata;
+    std::string response = jsres.dump();
+    callback(response);
+}
+void AuthRpcService::registUser(const std::string &request, std::function<void(std::string &response)> callback)
+{
+    std::cout << "调用rpc的registUser方法" << request << std::endl;
+    json js = json::parse(request);
+    User user;
+    user.setUserName(js.value("username", std::string()));
+    user.setPassWord(js.value("password", std::string()));
+    bool res = m_userdao.insertUser(user);
+    json jsres;
+    if (res)
+    {
+        jsres["errcode"] = static_cast<int>(ErrType::SUCCESS);
+        std::string devicename = js.value("device", "unknown");
+        json jsdata{{"userid", user.getId()},
+                    {"username", user.getUserName()},
+                    {"token", m_tokenManager->generateToken(user.getId(), devicename)}};
+        jsres["data"] = jsdata;
+    }
+    else
+    {
+        json jsdata{
+            {"errcode", static_cast<int>(ErrType::DB_ERROR)},
+            {"errmsg", "数据库错误"}};
+        jsres["data"] = jsdata;
+    }
     std::string response = jsres.dump();
     callback(response);
 }
@@ -92,28 +117,24 @@ void AuthRpcService::buildLoginInfo(json &js, json &resjs, User &user, bool isby
         {"username", user.getUserName()}};
     resjs["userinfo"] = userinfo;
     std::vector<User> friends = m_frienddao.query(userid);
-    if (!friends.empty())
+    std::vector<json> friendsobj;
+    std::vector<int> friendvec;
+    friendvec.reserve(friends.size());
+    friendsobj.reserve(friends.size());
+    for (auto &fuser : friends)
     {
-        std::vector<int> friendvec;
-        friendvec.reserve(friends.size());
-        std::vector<json> friendsobj;
-        friendsobj.reserve(friends.size());
-        for (auto &fuser : friends)
-        {
-            friendvec.push_back(fuser.getId());
-            friendsobj.emplace_back(json{
-                {"userid", fuser.getId()},
-                {"username", fuser.getUserName()},
-                {"state", fuser.getState()}});
-        }
-        //m_RelationCache.initFriends(user.getId(), friendvec,ResponseBuilder::getCurrentTimeMillis());
-        resjs["friends"] = friendsobj;
-        resjs["friendsids"] = friendvec;
+        friendvec.push_back(fuser.getId());
+        friendsobj.emplace_back(json{
+            {"userid", fuser.getId()},
+            {"username", fuser.getUserName()},
+            {"state", fuser.getState()}});
     }
+    resjs["friends"] = friendsobj;
+    resjs["friendsids"] = friendvec;
     std::vector<Group> groups = m_groupdao.queryGroupsByUserId(user.getId());
+    std::vector<json> groupstr;
     if (!groups.empty())
     {
-        std::vector<json> groupstr;
         groupstr.reserve(groups.size());
         for (auto &tgroup : groups)
         {
@@ -121,8 +142,8 @@ void AuthRpcService::buildLoginInfo(json &js, json &resjs, User &user, bool isby
                                         {"groupname", tgroup.getName()},
                                         {"groupdesc", tgroup.getDesc()}}));
         }
-        resjs["groups"] = groupstr;
     }
+    resjs["groups"] = groupstr;
     std::vector<std::string> offlinemsgs = m_offlinemsgdao.query(userid);
     m_offlinemsgdao.remove(userid);
     json offline_array = json::array();
@@ -160,10 +181,10 @@ int AuthRpcService::verifyToken(std::string &str)
 }
 
 // 检查token，如果当前用户当前设备，有token记录，并且可用，返回。没有就生成。
-    // if (!loginbytoken)
-    // {
-    //     std::string devicename = js.value("device", "unknown");
-    //     resjs["token"] = m_tokenManager->generateToken(userid, devicename);
-    // }
-    // json sendjson = buildResponse(resjs, MsgType::MSG_LOGIN_ACK);
-    // conn->send(sendjson.dump());
+// if (!loginbytoken)
+// {
+//     std::string devicename = js.value("device", "unknown");
+//     resjs["token"] = m_tokenManager->generateToken(userid, devicename);
+// }
+// json sendjson = buildResponse(resjs, MsgType::MSG_LOGIN_ACK);
+// conn->send(sendjson.dump());

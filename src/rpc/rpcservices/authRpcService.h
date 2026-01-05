@@ -24,7 +24,9 @@ public:
     ~AuthRpcService() = default;
     void login(const std::string&res,std::function<void(std::string &response)> callback);
     void tokenLogin(const std::string&res,std::function<void(std::string &response)> callback);
-    void buildLoginInfo(json &js,json& resjs, User &user, bool isbytoken);
+    void registUser(const std::string&res,std::function<void(std::string &response)> callback);
+    
 private:
     int verifyToken(std::string &str);
+    void buildLoginInfo(json &js,json& resjs, User &user, bool isbytoken);
 };

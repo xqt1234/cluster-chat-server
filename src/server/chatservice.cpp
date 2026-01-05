@@ -11,7 +11,7 @@ ChatService::ChatService()
 {
     m_authservcie.setRpcChannel(&m_channl);
     m_handlemap.insert({static_cast<int>(MsgType::MSG_LOGIN), std::bind(&AuthService::login, &m_authservcie, _1, _2, _3)});
-    // m_handlemap.insert({static_cast<int>(MsgType::MSG_REGISTER), std::bind(&AuthService::registerUser, &m_authservcie, _1, _2, _3)});
+    m_handlemap.insert({static_cast<int>(MsgType::MSG_REGISTER), std::bind(&AuthService::registUser, &m_authservcie, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_PRIVATE_CHAT), std::bind(&MessageService::ChatOne, &m_messageservice, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_ADD_FRIEND), std::bind(&FriendService::addFriend, &m_friendservice, _1, _2, _3)});
     m_handlemap.insert({static_cast<int>(MsgType::MSG_CREATE_GROUP), std::bind(&GroupService::createGroup, &m_groupservice, _1, _2, _3)});

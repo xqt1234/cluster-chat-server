@@ -66,3 +66,22 @@ void AuthService::LoginByToken(const TcpConnectionPtr &conn,const json &js, int 
     });
 }
 
+void AuthService::registUser(const TcpConnectionPtr &conn, const json &js, int tmpid)
+{
+    m_channel->callMethodAsync("UserService","RegistUser",js.dump(),[this,conn](std::string res){
+        json response = json::parse(res);
+        if(conn && conn->isConnected())
+        {
+            if(response["errcode"] != static_cast<int>(ErrType::SUCCESS))
+            {
+                conn->send(res);
+                return;
+            }else
+            {
+                json resdata = response["data"];
+                json sendjson = buildResponse(resdata, MsgType::MSG_LOGIN_BY_TOKEN_ACK);
+                conn->send(sendjson.dump());
+            }
+        }
+    });
+}

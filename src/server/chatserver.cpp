@@ -20,6 +20,7 @@ void ChatServer::newConnection(const TcpConnectionPtr &conn)
     if (conn->isConnected())
     {
         // std::cout << "启用外面的回调" << std::endl;
+        LOG_DEBUG("客户端 {} 建立连接",conn->getAddr().toIpPortString());
     }
     else
     {
